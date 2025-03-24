@@ -19,7 +19,19 @@ echo "NPM version: $(npm -v)"
 echo "Installing dependencies..."
 npm ci
 
-# Ensure core packages are installed directly
+# Run specialized Vite installer to ensure it's available in all forms
+echo "Running specialized Vite installer..."
+if [ -f "install-vite.cjs" ]; then
+  node install-vite.cjs
+  VITE_INSTALL_RESULT=$?
+  if [ $VITE_INSTALL_RESULT -ne 0 ]; then
+    echo "⚠️ Vite installer encountered issues, proceeding with traditional install..."
+  else
+    echo "✅ Vite installer completed successfully!"
+  fi
+fi
+
+# Ensure core packages are installed directly as fallback
 echo "Installing core packages explicitly..."
 npm install vite esbuild typescript @vitejs/plugin-react react react-dom
 

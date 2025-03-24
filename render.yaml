@@ -17,6 +17,11 @@ services:
       chmod +x direct-vite-build.js
       chmod +x verify-vite.js
       chmod +x custom-vite-build.cjs
+      chmod +x install-vite.cjs
+      
+      # Run our advanced Vite installer first
+      echo "Running advanced Vite installer..."
+      node install-vite.cjs
       
       # Install core build tools explicitly - multiple ways to ensure they're available
       npm install vite@latest esbuild@latest tsx@latest @vitejs/plugin-react@latest
