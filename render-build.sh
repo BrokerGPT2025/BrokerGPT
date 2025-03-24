@@ -17,17 +17,15 @@ fi
 
 # Build client assets
 echo "Building client assets..."
-npm run build
+# Run build commands directly to avoid vite not found error
+echo "Running vite build..."
+npx vite build
+echo "Running esbuild..."
+npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
 
-# Ensure dist directory exists
-echo "Ensuring dist directory exists..."
-mkdir -p dist
-
-# Create fallback index.js if it doesn't exist
-if [ ! -f "dist/index.js" ]; then
-  echo "Creating fallback index.js file..."
-  cp start.js dist/index.js
-fi
+# Run the Node.js script to ensure dist directory is properly set up
+echo "Running ensure-dist.js to set up dist directory..."
+node --import tsx ensure-dist.js
 
 echo "Setup complete. Application will start using production script."
 echo "Build completed successfully!"

@@ -4,8 +4,11 @@ services:
     env: node
     plan: starter
     buildCommand: |
-      # Install dependencies
-      npm install
+      # Install dependencies with exact versions to avoid compatibility issues
+      npm ci
+      
+      # Install global tools if needed
+      npm install -g vite esbuild tsx
       
       # Make build script executable
       chmod +x render-build.sh
