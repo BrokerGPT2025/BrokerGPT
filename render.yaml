@@ -12,8 +12,22 @@ services:
       echo "Running custom build script"
       bash render-build.sh
       
-    # Use our custom run script that directly executes TypeScript
-    startCommand: NODE_ENV=production node run.js
+    # Use our dedicated production script 
+    startCommand: NODE_ENV=production node --import tsx prod.js
     envVars:
       - key: NODE_ENV
         value: production
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SERPER_API_KEY
+        sync: false
+      - key: BROWSERLESS_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: PORT
+        value: 10000
