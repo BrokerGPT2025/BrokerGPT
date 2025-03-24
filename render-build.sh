@@ -14,13 +14,38 @@ echo "NPM version: $(npm -v)"
 echo "Installing dependencies..."
 npm ci
 
+# Ensure Vite is installed directly
+echo "Installing Vite and esbuild explicitly..."
+npm install vite esbuild
+
 # Create theme.json if it doesn't exist
 echo "Ensuring theme.json exists..."
 if [ ! -f theme.json ]; then
   echo '{ "primary": "#0087FF", "variant": "professional", "appearance": "light", "radius": 0.5 }' > theme.json
 fi
 
-# First attempt the standard build process (for both frontend and backend)
+# Verify Vite is actually available
+echo "Verifying Vite installation..."
+if [ -f "./node_modules/.bin/vite" ]; then
+  echo "✅ Vite found in node_modules/.bin at $(ls -la ./node_modules/.bin/vite)"
+else
+  echo "⚠️ Vite not found in expected location, checking if it was installed..."
+  ls -la ./node_modules/vite/bin
+  
+  # Create the symlink manually if needed
+  if [ -f "./node_modules/vite/bin/vite.js" ] && [ ! -f "./node_modules/.bin/vite" ]; then
+    echo "📌 Creating symlink for Vite..."
+    mkdir -p ./node_modules/.bin
+    ln -sf ../vite/bin/vite.js ./node_modules/.bin/vite
+    chmod +x ./node_modules/.bin/vite
+  fi
+fi
+
+# Add node_modules/.bin to PATH
+export PATH="./node_modules/.bin:$PATH"
+echo "Updated PATH: $PATH"
+
+# First attempt the standard build process 
 echo "Attempting standard build process (Vite + esbuild)..."
 npm run build
 
@@ -28,60 +53,36 @@ npm run build
 if [ ! -f "client/dist/index.html" ] || [ ! -f "dist/index.js" ]; then
   echo "Standard build process failed, falling back to specialized build steps..."
   
-  # Ensure PATH includes node_modules/.bin
-  export PATH="$PATH:./node_modules/.bin"
-  echo "Current PATH: $PATH"
-  
-  # Verify Vite is available
-  echo "Checking for Vite installation..."
-  if [ -f "./node_modules/.bin/vite" ]; then
-    echo "✅ Vite found in node_modules/.bin"
-  else
-    echo "❌ Vite not found in node_modules/.bin, checking PATH..."
-    which vite || echo "Vite not found in PATH, installing locally..."
-    
-    # Install if not found
-    if ! which vite > /dev/null; then
-      echo "Installing vite locally..."
-      npm install vite
-    fi
+  # Try direct build using node to execute vite
+  echo "Trying direct build with Node..."
+  if [ -f "./node_modules/vite/bin/vite.js" ]; then
+    echo "Building with: node ./node_modules/vite/bin/vite.js build"
+    node ./node_modules/vite/bin/vite.js build
   fi
   
-  # Try our specialized Vite build script first
-  echo "Trying specialized frontend build script..."
-  node vite-build.js || echo "Specialized Vite build script failed"
-  
-  # If specialized script failed, try direct commands
+  # Try our specialized Vite build script
   if [ ! -f "client/dist/index.html" ]; then
-    echo "Trying direct Vite build command..."
-    echo "Using $(which vite || echo 'vite not found')"
-    # Try with local path first, then fallback to npx if needed
-    ./node_modules/.bin/vite build || npx vite build || echo "Vite frontend build failed, will use static frontend generator"
-    
-    # If Vite build still failed, use our static frontend generator
-    if [ ! -f "client/dist/index.html" ]; then
-      echo "Generating static frontend as fallback..."
-      node static-frontend.js
-    fi
+    echo "Trying specialized frontend build script..."
+    node vite-build.js || echo "Specialized Vite build script failed"
+  fi
+  
+  # If specialized script failed, try static frontend generator
+  if [ ! -f "client/dist/index.html" ]; then
+    echo "Generating static frontend as fallback..."
+    node static-frontend.js
   fi
   
   # Build backend with esbuild specifically
   echo "Building backend with esbuild..."
-  # Verify esbuild is available
   if [ -f "./node_modules/.bin/esbuild" ]; then
     echo "✅ esbuild found in node_modules/.bin"
+    ./node_modules/.bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+  elif [ -f "./node_modules/esbuild/bin/esbuild" ]; then
+    echo "Using esbuild from module path..."
+    node ./node_modules/esbuild/bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
   else
-    echo "❌ esbuild not found in node_modules/.bin, checking PATH..."
-    which esbuild || echo "esbuild not found in PATH, installing locally..."
-    
-    # Install if not found
-    if ! which esbuild > /dev/null; then
-      echo "Installing esbuild locally..."
-      npm install esbuild
-    fi
+    echo "esbuild not found, falling back to minimal build..."
   fi
-  
-  ./node_modules/.bin/esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist || npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist || echo "esbuild backend build failed, will use minimal fallback"
 fi
 
 # Run the minimal build script as a fallback if needed

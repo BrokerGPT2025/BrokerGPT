@@ -57,50 +57,148 @@ function runCommand(command, args, options = {}) {
 
 async function buildFrontend() {
   try {
-    // Determine the best way to call Vite
-    const viteLocalPath = path.join(process.cwd(), 'node_modules', '.bin', 'vite');
-    let viteCommand = 'npx';
-    let viteArgs = ['vite', 'build'];
-    
-    // Check if local vite exists and use it directly if possible
-    if (fs.existsSync(viteLocalPath)) {
-      console.log(`Found local Vite installation at: ${viteLocalPath}`);
-      viteCommand = viteLocalPath;
-      viteArgs = ['build'];
-    } else {
-      console.log('No local Vite installation found, using npx fallback');
+    // Make sure Vite is installed
+    try {
+      console.log('Ensuring Vite is installed...');
+      await runCommand('npm', ['install', 'vite', '--no-save']);
+    } catch (installError) {
+      console.log('Vite installation may have failed, but continuing anyway:', installError.message);
     }
     
-    // 1. Run vite build for frontend
-    console.log(`Building frontend with command: ${viteCommand} ${viteArgs.join(' ')}`);
-    try {
-      await runCommand(viteCommand, viteArgs);
-    } catch (buildError) {
-      console.error('First build attempt failed, trying alternative method...');
-      
-      // Try alternate build method using node_modules directly
-      try {
-        // In ESM, we can't use require.resolve, so construct the path manually
-        const vitePath = path.join(process.cwd(), 'node_modules', 'vite', 'bin', 'vite.js');
-        console.log(`Attempting to use Vite from: ${vitePath}`);
-        if (fs.existsSync(vitePath)) {
-          await runCommand('node', [vitePath, 'build']);
-        } else {
-          throw new Error('Vite executable not found at expected path');
-        }
-      } catch (altBuildError) {
-        // Try one more fallback with NODE_PATH set
-        console.error('Second build attempt failed, trying with NODE_PATH...');
-        await runCommand('npx', ['vite', 'build'], {
-          env: {
-            ...process.env,
-            NODE_PATH: path.join(process.cwd(), 'node_modules')
-          }
-        });
+    // Check for Vite in different locations
+    console.log('Checking for Vite installation...');
+    const possibleVitePaths = [
+      path.join(process.cwd(), 'node_modules', '.bin', 'vite'),
+      path.join(process.cwd(), 'node_modules', 'vite', 'bin', 'vite.js'),
+      '/opt/render/project/node_modules/.bin/vite',
+      '/opt/render/project/node_modules/vite/bin/vite.js'
+    ];
+    
+    let viteFound = false;
+    let vitePath = '';
+    
+    for (const potentialPath of possibleVitePaths) {
+      if (fs.existsSync(potentialPath)) {
+        console.log(`Found Vite at: ${potentialPath}`);
+        vitePath = potentialPath;
+        viteFound = true;
+        break;
       }
     }
     
-    // Check if the build was successful
+    if (!viteFound) {
+      console.log('No Vite installation found in expected locations');
+    }
+    
+    // Try multiple approaches to run Vite build
+    const buildAttempts = [
+      // Attempt 1: Use Vite directly (instead of npm script that might not exist)
+      async () => {
+        console.log('Attempt 1: Using vite build directly...');
+        try {
+          await runCommand('npx', ['vite', 'build']);
+          return true;
+        } catch (err) {
+          console.log('Direct Vite build failed:', err.message);
+          return false;
+        }
+      },
+      
+      // Attempt 2: Use direct Vite path
+      async () => {
+        if (viteFound) {
+          console.log(`Attempt 2: Using direct Vite path: ${vitePath} build`);
+          try {
+            if (vitePath.endsWith('.js')) {
+              await runCommand('node', [vitePath, 'build']);
+            } else {
+              await runCommand(vitePath, ['build']);
+            }
+            return true;
+          } catch (err) {
+            console.log('Direct Vite build failed:', err.message);
+            return false;
+          }
+        }
+        return false;
+      },
+      
+      // Attempt 3: Use npx with custom NODE_PATH
+      async () => {
+        console.log('Attempt 3: Using npx with custom NODE_PATH...');
+        try {
+          await runCommand('npx', ['vite', 'build'], {
+            env: {
+              ...process.env,
+              NODE_PATH: path.join(process.cwd(), 'node_modules')
+            }
+          });
+          return true;
+        } catch (err) {
+          console.log('NPX with NODE_PATH build failed:', err.message);
+          return false;
+        }
+      },
+      
+      // Attempt 4: Use global Vite if available
+      async () => {
+        console.log('Attempt 4: Checking for global Vite...');
+        try {
+          await runCommand('vite', ['build']);
+          return true;
+        } catch (err) {
+          console.log('Global Vite build failed:', err.message);
+          return false;
+        }
+      },
+      
+      // Attempt 5: Create vite config programmatically and run
+      async () => {
+        console.log('Attempt 5: Creating custom Vite config and running...');
+        const tempViteConfigPath = path.join(process.cwd(), 'vite.config.temp.js');
+        
+        try {
+          // Create a simplified Vite config
+          const configContent = `
+            // Temporary Vite config for build
+            import { defineConfig } from 'vite';
+            import react from '@vitejs/plugin-react';
+            
+            export default defineConfig({
+              plugins: [react()],
+              build: {
+                outDir: 'client/dist',
+                emptyOutDir: true
+              }
+            });
+          `;
+          
+          fs.writeFileSync(tempViteConfigPath, configContent);
+          await runCommand('npx', ['vite', 'build', '--config', tempViteConfigPath]);
+          return true;
+        } catch (err) {
+          console.log('Custom config Vite build failed:', err.message);
+          return false;
+        } finally {
+          // Clean up temp file
+          if (fs.existsSync(tempViteConfigPath)) {
+            fs.unlinkSync(tempViteConfigPath);
+          }
+        }
+      }
+    ];
+    
+    // Try build attempts in sequence
+    let buildSuccess = false;
+    for (let i = 0; i < buildAttempts.length; i++) {
+      buildSuccess = await buildAttempts[i]();
+      if (buildSuccess) {
+        console.log(`Build attempt ${i + 1} succeeded!`);
+        break;
+      }
+    }
+    
+    // Check if the build was successful by looking for index.html
     const clientDistDir = path.join(process.cwd(), 'client', 'dist');
     const indexHtmlPath = path.join(clientDistDir, 'index.html');
     
@@ -108,7 +206,7 @@ async function buildFrontend() {
       console.log('Vite build successful - index.html was created.');
       return true;
     } else {
-      console.error('Vite build completed but index.html is missing. Build may have failed.');
+      console.error('All build attempts completed but index.html is missing. Build may have failed.');
       
       // Check if output went to a different location
       const possibleLocations = [
