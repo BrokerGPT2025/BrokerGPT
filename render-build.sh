@@ -7,24 +7,27 @@ echo "Starting build process..."
 
 # Install required dependencies
 echo "Installing dependencies..."
-npm ci
+npm ci 
 
-# Create entry point script that uses tsx to execute TypeScript directly
-echo "Creating direct execution entry point..."
-cat > run.js << 'EOL'
-#!/usr/bin/env node
+# Create theme.json if it doesn't exist
+echo "Ensuring theme.json exists..."
+if [ ! -f theme.json ]; then
+  echo '{ "primary": "#0087FF", "variant": "professional", "appearance": "light", "radius": 0.5 }' > theme.json
+fi
 
-// Simple startup script for production
-console.log('Starting BrokerGPT application...');
-console.log('Using Node.js version:', process.version);
-console.log('Using direct TypeScript execution mode');
+# Build client assets
+echo "Building client assets..."
+npm run build
 
-// Use tsx to run the TypeScript files directly
-require('tsx/esm')('./server/index.ts');
-EOL
+# Ensure dist directory exists
+echo "Ensuring dist directory exists..."
+mkdir -p dist
 
-# Make the entry point executable
-chmod +x run.js
+# Create fallback index.js if it doesn't exist
+if [ ! -f "dist/index.js" ]; then
+  echo "Creating fallback index.js file..."
+  cp start.js dist/index.js
+fi
 
-echo "Setup complete. Application will start using tsx to run TypeScript directly."
+echo "Setup complete. Application will start using production script."
 echo "Build completed successfully!"

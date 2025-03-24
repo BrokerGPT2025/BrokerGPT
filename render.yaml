@@ -12,8 +12,9 @@ services:
       echo "Running custom build script"
       bash render-build.sh
       
-    # Use our dedicated production script 
-    startCommand: NODE_ENV=production node --import tsx prod.js
+    # Use our dedicated production script
+    # This will be used by Render.com as the primary start command
+    startCommand: NODE_ENV=production node --import tsx start.js
     envVars:
       - key: NODE_ENV
         value: production
