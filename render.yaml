@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: brokergpt
+    env: node
+    plan: starter
+    buildCommand: npm install && chmod +x render-build.sh && ./render-build.sh
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
