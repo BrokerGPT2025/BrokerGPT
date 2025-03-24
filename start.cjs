@@ -2,9 +2,304 @@
 // This script ensures that when Render.com falls back to using `npm start`,
 // it will directly use the dist/index.js file which has the emergency server.
 
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+
+// First, let's ensure database compatibility by creating CommonJS versions if needed
+function ensureDatabaseCompatibility() {
+  console.log('Ensuring database module compatibility...');
+  
+  const dbTsPath = path.join(process.cwd(), 'server', 'db.ts');
+  const dbCjsPath = path.join(process.cwd(), 'server', 'db.cjs');
+  const createTablesTsPath = path.join(process.cwd(), 'scripts', 'create-tables.ts');
+  const createTablesCjsPath = path.join(process.cwd(), 'scripts', 'create-tables.cjs');
+  
+  // Check if the CommonJS versions exist
+  const dbCjsExists = fs.existsSync(dbCjsPath);
+  const createTablesCjsExists = fs.existsSync(createTablesCjsPath);
+  
+  // Create server/db.cjs if it doesn't exist
+  if (!dbCjsExists && fs.existsSync(dbTsPath)) {
+    console.log('Creating CommonJS version of server/db.ts...');
+    
+    const dbCjsContent = `// CommonJS version of database connection module
+
+'use strict';
+
+const { Pool } = require('@neondatabase/serverless');
+const pg = require('pg');
+const ws = require('ws');
+const path = require('path');
+
+// Use require.resolve to find the path to create-tables.cjs
+const CREATE_TABLES_PATH = path.resolve(__dirname, '../scripts/create-tables.cjs');
+
+// Require the createTables function
+let createTables;
+try {
+  createTables = require(CREATE_TABLES_PATH);
+  console.log("Successfully loaded create-tables.cjs module");
+} catch (err) {
+  console.error("Error loading create-tables.cjs:", err);
+  // Fallback empty function
+  createTables = async () => {
+    console.log("Using fallback empty createTables function");
+  };
+}
+
+// Configure neon for WebSocket support
+try {
+  const neonConfig = require('@neondatabase/serverless').neonConfig;
+  neonConfig.webSocketConstructor = ws;
+} catch (err) {
+  console.error("Error configuring neon:", err);
+}
+
+// Create connection pools
+let pool = null;
+let pgPool = null;
+let db = null;
+
+// Determine if using Neon or standard PostgreSQL
+const isNeonDbUrl = process.env.DATABASE_URL?.includes('neon.tech');
+
+/**
+ * Maximum number of connection attempts before falling back to in-memory storage
+ */
+const MAX_CONNECTION_ATTEMPTS = 3;
+
+/**
+ * Delay between connection attempts in milliseconds
+ */
+const CONNECTION_RETRY_DELAY = 2000;
+
+/**
+ * Attempts to connect to the PostgreSQL database
+ * @param attempt Current attempt number
+ * @returns True if connection successful, false otherwise
+ */
+async function attemptDatabaseConnection(attempt = 1) {
+  if (!process.env.DATABASE_URL) {
+    console.warn("DATABASE_URL not found. The application will use in-memory storage as a fallback.");
+    return false;
+  }
+
+  try {
+    console.log(\`PostgreSQL connection attempt \${attempt}/\${MAX_CONNECTION_ATTEMPTS} (CommonJS)...\`);
+    
+    // Log connection info (without credentials)
+    const dbUrlParts = process.env.DATABASE_URL.split('@');
+    if (dbUrlParts.length > 1) {
+      console.log(\`Attempting to connect to: \${dbUrlParts[1].split('/')[0]}\`);
+    }
+    
+    // Choose the appropriate connection method
+    if (isNeonDbUrl) {
+      // For Neon.tech (serverless)
+      pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      
+      // Verify the connection works with a simple query
+      await pool.query('SELECT NOW()');
+      
+      // We don't set up drizzle here as it may require ESM
+      console.log("Neon PostgreSQL database connection initialized successfully (CommonJS)");
+    } else {
+      // For standard PostgreSQL (Replit, Render, etc.)
+      pgPool = new pg.Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+      });
+      
+      // Verify the connection works with a simple query
+      await pgPool.query('SELECT NOW()');
+      
+      // Assign the pgPool to pool for compatibility with the rest of the code
+      pool = pgPool;
+      
+      console.log("Standard PostgreSQL database connection initialized successfully (CommonJS)");
+    }
+    
+    // Return true to indicate successful connection
+    return true;
+  } catch (error) {
+    console.error(\`Connection attempt \${attempt} failed:\`, error);
+    
+    if (attempt < MAX_CONNECTION_ATTEMPTS) {
+      console.log(\`Retrying in \${CONNECTION_RETRY_DELAY/1000} seconds...\`);
+      await new Promise(resolve => setTimeout(resolve, CONNECTION_RETRY_DELAY));
+      return attemptDatabaseConnection(attempt + 1);
+    } else {
+      console.warn(\`Failed to connect after \${MAX_CONNECTION_ATTEMPTS} attempts. Using in-memory storage.\`);
+      return false;
+    }
+  }
+}
+
+async function initializeDatabase() {
+  const connected = await attemptDatabaseConnection();
+  
+  if (connected) {
+    try {
+      // Use our external create tables script
+      console.log("Creating tables using CommonJS module...");
+      await createTables(pool);
+    } catch (tableError) {
+      console.error("Error creating tables:", tableError);
+      console.log("Continuing with existing database structure");
+    }
+  }
+}
+
+// Initialize database
+initializeDatabase().catch(err => {
+  console.error("Database initialization failed:", err);
+  console.warn("Falling back to in-memory storage");
+});
+
+// Helper function to check if DB is available
+function isDatabaseAvailable() {
+  return !!pool;
+}
+
+// Export pool and functions
+module.exports = {
+  pool,
+  db,
+  isDatabaseAvailable
+};`;
+    
+    fs.writeFileSync(dbCjsPath, dbCjsContent);
+    console.log('Created CommonJS version of db.ts at db.cjs');
+  }
+  
+  // Create scripts/create-tables.cjs if it doesn't exist
+  if (!createTablesCjsExists && fs.existsSync(createTablesTsPath)) {
+    console.log('Creating CommonJS version of scripts/create-tables.ts...');
+    
+    const createTablesCjsContent = `// Create database tables script (CommonJS version)
+// This will be executed from index.ts
+
+'use strict';
+
+/**
+ * Creates all required database tables if they don't exist
+ * @param pool The PostgreSQL connection pool
+ */
+const createTables = async (pool) => {
+  if (!pool) {
+    console.log("No database pool available, skipping table creation");
+    return;
+  }
+
+  try {
+    console.log("Checking if tables need to be created (CommonJS)...");
+    
+    // First try to query the clients table to see if it exists
+    try {
+      await pool.query("SELECT 1 FROM clients LIMIT 1");
+      console.log("Tables already exist, skipping creation");
+      return; // Tables exist, exit early
+    } catch (error) {
+      // Table doesn't exist, continue with creation
+      console.log("Tables don't exist, creating now...");
+    }
+
+    // Create tables based on schema
+    const createTableQueries = [
+      \`CREATE TABLE IF NOT EXISTS clients (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        address TEXT,
+        city TEXT,
+        province TEXT,
+        postal_code TEXT,
+        phone TEXT,
+        email TEXT,
+        business_type TEXT,
+        annual_revenue INTEGER,
+        employees INTEGER,
+        risk_profile JSONB,
+        created_at TIMESTAMP DEFAULT NOW()
+      )\`,
+      \`CREATE TABLE IF NOT EXISTS carriers (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        website TEXT,
+        phone TEXT,
+        email TEXT,
+        specialties TEXT[],
+        risk_appetite JSONB,
+        min_premium INTEGER,
+        max_premium INTEGER,
+        regions TEXT[],
+        business_types TEXT[]
+      )\`,
+      \`CREATE TABLE IF NOT EXISTS policies (
+        id SERIAL PRIMARY KEY,
+        client_id INTEGER NOT NULL,
+        carrier_id INTEGER NOT NULL,
+        policy_type TEXT NOT NULL,
+        start_date TIMESTAMP NOT NULL,
+        end_date TIMESTAMP NOT NULL,
+        premium INTEGER,
+        status TEXT NOT NULL,
+        coverage_limits JSONB
+      )\`,
+      \`CREATE TABLE IF NOT EXISTS chat_messages (
+        id SERIAL PRIMARY KEY,
+        client_id INTEGER,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        timestamp TIMESTAMP DEFAULT NOW()
+      )\`,
+      \`CREATE TABLE IF NOT EXISTS record_types (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT
+      )\`,
+      \`CREATE TABLE IF NOT EXISTS client_records (
+        id SERIAL PRIMARY KEY,
+        client_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        description TEXT,
+        value TEXT,
+        date TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      )\`
+    ];
+    
+    for (const query of createTableQueries) {
+      try {
+        await pool.query(query);
+        console.log("Successfully created table from query:", query.substring(0, 60) + '...');
+      } catch (err) {
+        console.error("Error creating table:", err);
+      }
+    }
+    
+    console.log("All tables created successfully.");
+  } catch (error) {
+    console.error("Error in database table creation:", error);
+  }
+};
+
+module.exports = createTables;`;
+    
+    fs.writeFileSync(createTablesCjsPath, createTablesCjsContent);
+    console.log('Created CommonJS version of create-tables.ts at create-tables.cjs');
+  }
+  
+  return true;
+}
+
+// Run the compatibility check
+try {
+  ensureDatabaseCompatibility();
+} catch (err) {
+  console.error('Error ensuring database compatibility:', err);
+  // Continue anyway, since this is just a preparation step
+}
 
 console.log('Starting BrokerGPT application through start.cjs...');
 console.log(`Node version: ${process.version}`);
