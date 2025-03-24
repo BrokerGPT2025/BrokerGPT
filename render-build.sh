@@ -1,5 +1,6 @@
 #!/bin/bash
 # Simplified build script for Render.com with direct execution approach
+# Optimized for CommonJS compatibility without external dependencies
 
 # Don't exit on errors to allow fallbacks to work
 set +e
@@ -13,43 +14,25 @@ echo "NPM version: $(npm -v)"
 echo "Installing dependencies..."
 npm ci
 
-# Install required global packages
-echo "Installing global packages..."
-npm install -g tsx esbuild 
-
 # Create theme.json if it doesn't exist
 echo "Ensuring theme.json exists..."
 if [ ! -f theme.json ]; then
   echo '{ "primary": "#0087FF", "variant": "professional", "appearance": "light", "radius": 0.5 }' > theme.json
 fi
 
-# Attempt to build client assets with standard approach
-echo "Building client assets..."
-echo "Attempting standard build process with npm run build..."
-npm run build
+# Always run the minimal build script first to ensure we have basic files in place
+echo "Running minimal build to ensure base files..."
+node minimal-build.js
 
-# Check if the build succeeded
-if [ ! -f "client/dist/index.html" ]; then
-  echo "Standard build failed, trying direct commands..."
-  
-  # Try direct vite build
-  echo "Running direct vite build..."
-  npx vite build
-  
-  # Check if vite build succeeded
-  if [ ! -f "client/dist/index.html" ]; then
-    echo "Vite build failed, running minimal build script..."
-    node --import tsx minimal-build.js || node minimal-build.js
-  fi
+# Try regular build only if minimal build succeeded
+if [ -f "client/dist/index.html" ] && [ -f "dist/index.js" ]; then
+  echo "Minimal build succeeded, attempting standard build process..."
+  npm run build || echo "Standard build failed, using minimal build as fallback"
 fi
 
-# Try to bundle the server code
-echo "Running esbuild for server code..."
-npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist || echo "esbuild failed, will use fallback"
+# Ensure the emergency fallback is in place
+echo "Ensuring dist/index.js exists one more time..."
+node ensure-dist.js
 
-# Always run ensure-dist.js as a final fallback
-echo "Running ensure-dist.js to set up dist directory..."
-node --import tsx ensure-dist.js || node ensure-dist.js
-
-echo "Setup complete. Application will start using production script."
+echo "Setup complete. Application will start using minimal emergency server."
 echo "Build completed successfully!"

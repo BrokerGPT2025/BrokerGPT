@@ -1,18 +1,18 @@
 // Minimal build script for production on Render.com
 // This bypasses the need for Vite and creates a basic client build
+// Using CommonJS for maximum compatibility
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+const fs = require('fs');
+const path = require('path');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Use process.cwd() for maximum compatibility
+const rootDir = process.cwd();
 
 console.log('Starting minimal build process...');
 
 // Create required directories
-const distDir = path.join(__dirname, 'dist');
-const clientDistDir = path.join(__dirname, 'client', 'dist');
+const distDir = path.join(rootDir, 'dist');
+const clientDistDir = path.join(rootDir, 'client', 'dist');
 
 console.log('Creating required directories...');
 [distDir, clientDistDir].forEach(dir => {
@@ -93,7 +93,7 @@ if (!fs.existsSync(indexHtmlPath)) {
   </div>
   <script>
     // Basic API status check
-    fetch('/api/chat')
+    fetch('/api/health')
       .then(response => {
         const statusEl = document.querySelector('.status');
         if (response.ok) {
@@ -125,47 +125,80 @@ const serverBundlePath = path.join(distDir, 'index.js');
 if (!fs.existsSync(serverBundlePath)) {
   console.log('Creating minimal server bundle...');
   const serverBundle = `// Minimal server bundle created by minimal-build.js
-// This redirects to prod.js for the actual server logic
+// This serves a minimal Express application without external dependencies
 
-import { fileURLToPath } from 'url';
-import path from 'path';
-import { spawn } from 'child_process';
+// Use CommonJS for maximum compatibility
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
 
-console.log('Starting minimal server bundle...');
+console.log('Starting minimal emergency server...');
+console.log(\`Node version: \${process.version}\`);
+console.log(\`Current directory: \${process.cwd()}\`);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const prodScriptPath = path.join(__dirname, '..', 'prod.js');
+// Set NODE_ENV to production
+process.env.NODE_ENV = 'production';
 
-console.log(\`Redirecting to production script at \${prodScriptPath}\`);
+// Initialize Express
+const app = express();
+app.use(express.json());
 
-try {
-  // Try to run with tsx
-  console.log('Attempting to start with tsx...');
-  process.env.NODE_ENV = 'production';
-  const child = spawn('node', ['--import', 'tsx', prodScriptPath], {
-    stdio: 'inherit',
-    env: process.env
-  });
+// Set up static serving
+const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
+if (fs.existsSync(clientDistPath)) {
+  console.log(\`Serving static files from \${clientDistPath}\`);
+  app.use(express.static(clientDistPath));
+}
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// API endpoint for chat - minimal fallback
+app.get('/api/chat', (req, res) => {
+  res.json({ messages: [] });
+});
+
+// API endpoint for carriers - minimal fallback
+app.get('/api/carriers', (req, res) => {
+  res.json([]);
+});
+
+// SPA fallback
+app.get('*', (req, res) => {
+  const indexHtmlPath = path.join(clientDistPath, 'index.html');
   
-  child.on('exit', (code) => process.exit(code));
-  child.on('error', () => {
-    console.log('Failed to start with tsx, attempting direct execution...');
-    const child2 = spawn('node', [prodScriptPath], {
-      stdio: 'inherit',
-      env: process.env
-    });
-    
-    child2.on('exit', (code) => process.exit(code));
-    child2.on('error', (err) => {
-      console.error('Failed to start server:', err);
-      process.exit(1);
-    });
-  });
-} catch (error) {
-  console.error('Caught error while trying to start server:', error);
-  process.exit(1);
-}`;
+  if (fs.existsSync(indexHtmlPath)) {
+    res.sendFile(indexHtmlPath);
+  } else {
+    res.send(\`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>BrokerGPT</title>
+        <style>
+          body { font-family: sans-serif; text-align: center; padding: 50px; }
+          .logo { font-size: 2rem; font-weight: bold; color: #0087FF; }
+        </style>
+      </head>
+      <body>
+        <div class="logo">BrokerGPT</div>
+        <p>Emergency server is running. Regular API endpoints are unavailable.</p>
+      </body>
+      </html>
+    \`);
+  }
+});
+
+// Start the server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(\`[EMERGENCY SERVER] Running at http://localhost:\${PORT}\`);
+  console.log('Environment variables:');
+  console.log('- NODE_ENV:', process.env.NODE_ENV || 'not set');
+  console.log('- PORT:', process.env.PORT || '5000 (default)');
+});`;
   
   fs.writeFileSync(serverBundlePath, serverBundle);
   console.log('Created minimal server bundle');

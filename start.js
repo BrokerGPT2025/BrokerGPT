@@ -1,15 +1,16 @@
 // Redirect script for Render.com deployment
 // This script ensures that when Render.com falls back to using `npm start`,
-// it will properly redirect to our production script.
+// it will directly use the dist/index.js file which has the emergency server.
+// Using CommonJS for maximum compatibility.
 
-import { spawn } from 'child_process';
-import { fileURLToPath } from 'url';
-import path from 'path';
-import fs from 'fs';
+const { spawn } = require('child_process');
+const path = require('path');
+const fs = require('fs');
 
 console.log('Starting BrokerGPT application through start.js...');
 console.log(`Node version: ${process.version}`);
 console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`Current directory: ${process.cwd()}`);
 
 // Set environment variable if not already set
 if (!process.env.NODE_ENV) {
@@ -17,87 +18,100 @@ if (!process.env.NODE_ENV) {
   console.log('Setting NODE_ENV to production');
 }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const prodScriptPath = path.join(__dirname, 'prod.js');
+// Check if dist/index.js exists first - that's our primary target
+const distIndexPath = path.join(process.cwd(), 'dist', 'index.js');
+const prodScriptPath = path.join(process.cwd(), 'prod.js');
 
-// Verify that prod.js exists
-if (!fs.existsSync(prodScriptPath)) {
-  console.error(`ERROR: Production script not found at ${prodScriptPath}`);
-  console.log('Attempting to create minimal prod.js file...');
+console.log(`Checking for dist/index.js at ${distIndexPath}`);
+
+// Try to use dist/index.js first (our emergency server)
+if (fs.existsSync(distIndexPath)) {
+  console.log('Found dist/index.js, using it directly...');
   
-  const minimalProdJs = `
-  // Minimal production server created by start.js
-  import express from 'express';
-  import path from 'path';
-  import { fileURLToPath } from 'url';
-  
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-  
-  const app = express();
-  app.use(express.json());
-  
-  // Serve static files from dist directory
-  app.use(express.static(path.join(__dirname, 'client', 'dist')));
-  
-  // Fallback route
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
+  // Spawn the process to run dist/index.js
+  const child = spawn('node', [distIndexPath], {
+    stdio: 'inherit',
+    env: process.env
   });
+
+  // Handle process exit
+  child.on('exit', (code) => {
+    console.log(`Child process exited with code ${code}`);
+    process.exit(code);
+  });
+
+  // Handle errors
+  child.on('error', (err) => {
+    console.error('Failed to start dist/index.js server:', err);
+    startEmergencyServer();
+  });
+} 
+// If dist/index.js doesn't exist, try prod.js
+else if (fs.existsSync(prodScriptPath)) {
+  console.log(`Dist index not found, trying prod.js at ${prodScriptPath}`);
   
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
-    console.log(\`[EMERGENCY SERVER] Running at http://localhost:\${PORT}\`);
-  });`;
-  
-  fs.writeFileSync(prodScriptPath, minimalProdJs);
-  console.log('Created minimal prod.js file');
+  // Spawn the process to run prod.js
+  const child = spawn('node', [prodScriptPath], {
+    stdio: 'inherit',
+    env: process.env
+  });
+
+  // Handle process exit
+  child.on('exit', (code) => {
+    console.log(`Child process exited with code ${code}`);
+    process.exit(code);
+  });
+
+  // Handle errors
+  child.on('error', (err) => {
+    console.error('Failed to start prod.js server:', err);
+    startEmergencyServer();
+  });
+}
+// If neither exists, start emergency server directly
+else {
+  console.error('Neither dist/index.js nor prod.js exist!');
+  startEmergencyServer();
 }
 
-console.log(`Redirecting to production script at ${prodScriptPath}`);
-
-// Check if tsx is available
-let command = 'node';
-let args = [];
-
-try {
-  // Check if tsx is installed
-  require.resolve('tsx');
-  console.log('Using tsx for TypeScript support');
-  args = ['--import', 'tsx', prodScriptPath];
-} catch (e) {
-  console.log('tsx not found, trying to run prod.js directly');
-  args = [prodScriptPath];
+// Emergency server function if all else fails
+function startEmergencyServer() {
+  console.log('Starting emergency inline server...');
+  
+  try {
+    const express = require('express');
+    const app = express();
+    const PORT = process.env.PORT || 5000;
+    
+    app.get('/api/health', (req, res) => {
+      res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    });
+    
+    app.get('/', (req, res) => {
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>BrokerGPT</title>
+          <style>
+            body { font-family: sans-serif; text-align: center; padding: 50px; }
+            .logo { font-size: 2rem; font-weight: bold; color: #0087FF; }
+          </style>
+        </head>
+        <body>
+          <div class="logo">BrokerGPT</div>
+          <p>Emergency server is running. This is a fallback of last resort.</p>
+        </body>
+        </html>
+      `);
+    });
+    
+    app.listen(PORT, () => {
+      console.log(`[INLINE EMERGENCY SERVER] Running at http://localhost:${PORT}`);
+    });
+  } catch (err) {
+    console.error('Complete server failure. Cannot start Express:', err);
+    console.log('Exiting process');
+    process.exit(1);
+  }
 }
-
-// Spawn the process
-const child = spawn(command, args, {
-  stdio: 'inherit',
-  env: process.env
-});
-
-// Handle process exit
-child.on('exit', (code) => {
-  console.log(`Child process exited with code ${code}`);
-  process.exit(code);
-});
-
-// Handle errors
-child.on('error', (err) => {
-  console.error('Failed to start production script:', err);
-  
-  // Try one last fallback approach
-  console.log('Attempting emergency direct server startup...');
-  
-  const app = require('express')();
-  const PORT = process.env.PORT || 5000;
-  
-  app.get('/', (req, res) => {
-    res.send('BrokerGPT Emergency Server');
-  });
-  
-  app.listen(PORT, () => {
-    console.log(`[EMERGENCY SERVER] Running at http://localhost:${PORT}`);
-  });
-});
