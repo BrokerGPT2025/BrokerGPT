@@ -1,11 +1,12 @@
 // Redirect script for Render.com deployment
 // This script ensures that when Render.com falls back to using `npm start`,
 // it will directly use the dist/index.js file which has the emergency server.
-// Using CommonJS for maximum compatibility.
+// Using ESM syntax based on package.json type:module setting
 
-const { spawn } = require('child_process');
-const path = require('path');
-const fs = require('fs');
+import { spawn } from 'child_process';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 console.log('Starting BrokerGPT application through start.js...');
 console.log(`Node version: ${process.version}`);
@@ -75,11 +76,13 @@ else {
 }
 
 // Emergency server function if all else fails
-function startEmergencyServer() {
+async function startEmergencyServer() {
   console.log('Starting emergency inline server...');
   
   try {
-    const express = require('express');
+    // Use dynamic import for ESM
+    const expressModule = await import('express');
+    const express = expressModule.default;
     const app = express();
     const PORT = process.env.PORT || 5000;
     

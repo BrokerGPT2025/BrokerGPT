@@ -1,10 +1,14 @@
 // Script to ensure dist directory and index.js exist
 // This is used during the build process to guarantee proper deployment
+// Using ESM syntax based on package.json type:module setting
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Use process.cwd() instead of __dirname for CommonJS compatibility
+// Get directory name in ESM context
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const rootDir = process.cwd();
 
 // Paths
@@ -17,17 +21,24 @@ if (!fs.existsSync(distDir)) {
   console.log('Created dist directory');
 }
 
-// Content for index.js if it doesn't exist - using CommonJS format
+// Content for index.js if it doesn't exist - using ESM format
 const indexContent = `// Fallback entry point for Render.com deployment
 // This script serves a minimal Express server without any external dependencies
+// Using ESM syntax based on package.json type:module setting
 
-// Use CommonJS format for maximum compatibility
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 console.log('WARNING: dist/index.js was called directly.');
 console.log('Starting minimal Express server...');
+console.log(\`Node version: \${process.version}\`);
+console.log(\`Current directory: \${process.cwd()}\`);
+
+// Get directory name in ESM context
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize Express
 const app = express();
@@ -36,7 +47,7 @@ app.use(express.json());
 // Set up static serving
 const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
 if (fs.existsSync(clientDistPath)) {
-  console.log('Serving static files from client/dist...');
+  console.log(\`Serving static files from \${clientDistPath}\`);
   app.use(express.static(clientDistPath));
 }
 
@@ -85,6 +96,9 @@ app.get('*', (req, res) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(\`[EMERGENCY SERVER] Running at http://localhost:\${PORT}\`);
+  console.log('Environment variables:');
+  console.log('- NODE_ENV:', process.env.NODE_ENV || 'not set');
+  console.log('- PORT:', process.env.PORT || '5000 (default)');
 });`;
 
 // Check if index.js exists

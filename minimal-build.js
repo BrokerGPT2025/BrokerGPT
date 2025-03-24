@@ -1,11 +1,14 @@
 // Minimal build script for production on Render.com
 // This bypasses the need for Vite and creates a basic client build
-// Using CommonJS for maximum compatibility
+// Using ESM syntax based on package.json type:module setting
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Use process.cwd() for maximum compatibility
+// Get directory name in ESM context
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const rootDir = process.cwd();
 
 console.log('Starting minimal build process...');
@@ -126,11 +129,12 @@ if (!fs.existsSync(serverBundlePath)) {
   console.log('Creating minimal server bundle...');
   const serverBundle = `// Minimal server bundle created by minimal-build.js
 // This serves a minimal Express application without external dependencies
+// Using ESM syntax based on package.json type:module setting
 
-// Use CommonJS for maximum compatibility
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 
 console.log('Starting minimal emergency server...');
 console.log(\`Node version: \${process.version}\`);
@@ -138,6 +142,10 @@ console.log(\`Current directory: \${process.cwd()}\`);
 
 // Set NODE_ENV to production
 process.env.NODE_ENV = 'production';
+
+// Get directory name in ESM context
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize Express
 const app = express();
