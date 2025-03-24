@@ -3,8 +3,22 @@ services:
     name: brokergpt
     env: node
     plan: starter
-    buildCommand: npm install && chmod +x render-build.sh && ./render-build.sh
-    startCommand: npm start
+    buildCommand: |
+      # Install dependencies
+      npm install
+      
+      # Make build script executable if it exists
+      if [ -f render-build.sh ]; then
+        chmod +x render-build.sh
+        echo "Running custom build script"
+        bash render-build.sh || npm run build
+      else
+        echo "Custom build script not found, using default build"
+        npm run build
+        mkdir -p server/public
+        if [ -d dist/public ]; then cp -r dist/public/* server/public/; fi
+      fi
+    startCommand: NODE_ENV=production node -r tsx/esm server/index.ts
     envVars:
       - key: NODE_ENV
         value: production
