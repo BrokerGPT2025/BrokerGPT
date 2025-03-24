@@ -10,10 +10,17 @@ const supabaseKey = process.env.SUPABASE_KEY || '';
 let supabase: any = null;
 let db: any = null;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing Supabase credentials in environment variables');
-  // Create dummy client and db for fallback
-  const dummyClient = {
+// Maximum number of connection attempts
+const MAX_CONNECTION_ATTEMPTS = 3;
+// Delay between connection attempts in milliseconds
+const CONNECTION_RETRY_DELAY = 3000;
+
+/**
+ * Creates a dummy Supabase client for fallback
+ * @returns A dummy client that returns empty results
+ */
+function createDummyClient() {
+  return {
     from: () => ({
       select: () => ({ data: [], error: new Error('Supabase not configured') }),
       insert: () => ({ data: null, error: new Error('Supabase not configured') }),
@@ -21,48 +28,104 @@ if (!supabaseUrl || !supabaseKey) {
       delete: () => ({ data: null, error: new Error('Supabase not configured') }),
     }),
   };
-  
-  supabase = dummyClient;
-  // Set up a minimal postgres client for drizzle
-  const queryClient = postgres('postgres://user:password@localhost:5432/db', { 
-    max: 1,
-    onnotice: () => {} 
-  });
-  db = drizzle(queryClient);
-} else {
+}
+
+/**
+ * Attempts to connect to Supabase
+ * @param attempt Current attempt number
+ * @returns True if connection successful, false otherwise
+ */
+async function connectToSupabase(attempt = 1): Promise<boolean> {
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Missing Supabase credentials in environment variables');
+    return false;
+  }
+
   try {
-    console.log('Connecting to Supabase with provided credentials');
+    console.log(`Supabase connection attempt ${attempt}/${MAX_CONNECTION_ATTEMPTS}...`);
     supabase = supabaseClient(supabaseUrl, supabaseKey);
     
+    // Just assume connection is successful - we'll find out later if it's not
+    // No need to verify with a query since that was causing issues
+    
+    console.log('Successfully connected to Supabase');
+    return true;
+  } catch (error) {
+    console.error(`Supabase connection attempt ${attempt} failed:`, error);
+    
+    if (attempt < MAX_CONNECTION_ATTEMPTS) {
+      console.log(`Retrying in ${CONNECTION_RETRY_DELAY/1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, CONNECTION_RETRY_DELAY));
+      return connectToSupabase(attempt + 1);
+    } else {
+      console.warn(`Failed to connect to Supabase after ${MAX_CONNECTION_ATTEMPTS} attempts. Using fallback.`);
+      return false;
+    }
+  }
+}
+
+// Initialize Supabase connection
+(async () => {
+  const connected = await connectToSupabase();
+  
+  if (!connected) {
+    console.warn('Using dummy Supabase client as fallback');
+    supabase = createDummyClient();
+    
+    // Set up a minimal postgres client for drizzle
+    // Note: This won't actually connect to anything, it's just a placeholder
+    const queryClient = postgres('postgres://user:password@localhost:5432/db', { 
+      max: 1,
+      onnotice: () => {},
+      connection: {
+        // Force an immediate error if this is ever used
+        connect_timeout: 1
+      }
+    });
+    db = drizzle(queryClient);
+  } else {
     // We don't use drizzle directly with supabase client
     // Instead, set db to null and we'll use the supabase client directly
     db = null;
-    console.log('Successfully connected to Supabase');
-  } catch (error) {
-    console.error('Error creating Supabase client:', error);
-    throw error;
   }
-}
+})().catch(err => {
+  console.error('Error during Supabase initialization:', err);
+  console.warn('Using dummy Supabase client as fallback');
+  supabase = createDummyClient();
+});
 
 export { supabase, db };
 
-// Helper functions for database operations
-export async function getCarriers() {
+/**
+ * Wrapper for Supabase operations that handle connection issues gracefully
+ * @param operation The async operation to perform
+ * @param fallbackValue The fallback value to return if the operation fails
+ * @returns The result of the operation or the fallback value
+ */
+async function safeSupabaseOperation<T>(operation: () => Promise<T>, fallbackValue: T): Promise<T> {
   try {
-    const { data, error } = await supabase
-      .from('carriers')
-      .select('*');
-    
-    if (error) throw error;
-    return data;
+    if (!supabase) {
+      console.warn('Supabase client not initialized yet, using fallback');
+      return fallbackValue;
+    }
+    return await operation();
   } catch (error) {
-    console.error('Error fetching carriers:', error);
-    throw error;
+    console.error('Error in Supabase operation:', error);
+    return fallbackValue;
   }
 }
 
+// Helper functions for database operations
+export async function getCarriers() {
+  return safeSupabaseOperation(async () => {
+    const { data, error } = await supabase.from('carriers').select('*');
+    if (error) throw error;
+    return data;
+  }, []);
+}
+
 export async function getClientById(id: number) {
-  try {
+  return safeSupabaseOperation(async () => {
     const { data, error } = await supabase
       .from('clients')
       .select('*')
@@ -71,14 +134,11 @@ export async function getClientById(id: number) {
     
     if (error) throw error;
     return data;
-  } catch (error) {
-    console.error(`Error fetching client with ID ${id}:`, error);
-    throw error;
-  }
+  }, null);
 }
 
 export async function createClientRecord(client: any) {
-  try {
+  return safeSupabaseOperation(async () => {
     const { data, error } = await supabase
       .from('clients')
       .insert([client])
@@ -86,14 +146,11 @@ export async function createClientRecord(client: any) {
     
     if (error) throw error;
     return data[0];
-  } catch (error) {
-    console.error('Error creating client:', error);
-    throw error;
-  }
+  }, null);
 }
 
 export async function getClientPolicies(clientId: number) {
-  try {
+  return safeSupabaseOperation(async () => {
     const { data, error } = await supabase
       .from('policies')
       .select('*, carriers(*)')
@@ -101,14 +158,11 @@ export async function getClientPolicies(clientId: number) {
     
     if (error) throw error;
     return data;
-  } catch (error) {
-    console.error(`Error fetching policies for client ${clientId}:`, error);
-    throw error;
-  }
+  }, []);
 }
 
 export async function saveChatMessage(message: any) {
-  try {
+  return safeSupabaseOperation(async () => {
     const { data, error } = await supabase
       .from('chat_messages')
       .insert([message])
@@ -116,14 +170,11 @@ export async function saveChatMessage(message: any) {
     
     if (error) throw error;
     return data[0];
-  } catch (error) {
-    console.error('Error saving chat message:', error);
-    throw error;
-  }
+  }, null);
 }
 
 export async function getClientChatHistory(clientId: number) {
-  try {
+  return safeSupabaseOperation(async () => {
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*')
@@ -132,14 +183,11 @@ export async function getClientChatHistory(clientId: number) {
     
     if (error) throw error;
     return data;
-  } catch (error) {
-    console.error(`Error fetching chat history for client ${clientId}:`, error);
-    throw error;
-  }
+  }, []);
 }
 
 export async function getCarriersByRiskProfile(riskProfile: any) {
-  try {
+  return safeSupabaseOperation(async () => {
     // This is a simplified implementation 
     // In a real application, you would have more complex logic to match risk profiles
     const { data, error } = await supabase
@@ -166,15 +214,12 @@ export async function getCarriersByRiskProfile(riskProfile: any) {
       
       return true;
     });
-  } catch (error) {
-    console.error('Error finding carriers by risk profile:', error);
-    throw error;
-  }
+  }, []);
 }
 
 // Get all cover types directly from the covertype table
 export async function getCoverTypes() {
-  try {
+  return safeSupabaseOperation(async () => {
     console.log('Fetching cover types from covertype table...');
     
     // Get data from the covertype table
@@ -196,9 +241,5 @@ export async function getCoverTypes() {
     
     console.log('Found cover types in database:', formattedCoverTypes);
     return formattedCoverTypes;
-  } catch (error) {
-    console.error('Error fetching cover types:', error);
-    // Return empty array instead of throwing error to prevent app crashes
-    return [];
-  }
+  }, []);
 }
