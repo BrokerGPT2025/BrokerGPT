@@ -4,3 +4,16 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Log files
+*.log
+brokerGPT.log
+server.log
+
+# Test files
+test.html
