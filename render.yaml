@@ -18,6 +18,8 @@ services:
       chmod +x verify-vite.js
       chmod +x custom-vite-build.cjs
       chmod +x install-vite.cjs
+      chmod +x vite-run.cjs
+      chmod +x render-build-special.cjs
       
       # Run our advanced Vite installer first
       echo "Running advanced Vite installer..."
@@ -41,6 +43,10 @@ services:
       # Use CommonJS build script first (most compatible) 
       echo "Running custom Vite build script (CommonJS)..."
       node custom-vite-build.cjs || true
+      
+      # Try our special Render build script
+      echo "Running special render build script..."
+      node render-build-special.cjs || true
       
       # Run our enhanced build script to handle all fallbacks
       echo "Running complete render build script..."

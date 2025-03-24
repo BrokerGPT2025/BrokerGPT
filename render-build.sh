@@ -102,9 +102,15 @@ else
       npm i -g @vitejs/plugin-react esbuild
       export PATH="$PATH:$(npm bin -g)"
       
-      # Try the regular build
-      echo "Attempting direct vite build command..."
-      npx vite build
+      # Try our special Vite runner first
+      echo "Attempting build with special vite-run.cjs script..."
+      if [ -f "vite-run.cjs" ]; then
+        node vite-run.cjs build
+      else
+        # Fall back to regular vite build
+        echo "Attempting direct vite build command..."
+        npx vite build
+      fi
       
       # If still failing, try static frontend generator (both versions)
       if [ ! -f "client/dist/index.html" ]; then
