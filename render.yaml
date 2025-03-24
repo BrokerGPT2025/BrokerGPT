@@ -7,17 +7,20 @@ services:
       # Install dependencies with exact versions to avoid compatibility issues
       npm ci
       
-      # Install global tools if needed
-      npm install -g vite esbuild tsx
+      # Install build tools as local dependencies to ensure they're available in the PATH
+      npm install vite esbuild tsx
+      
+      # Add node_modules/.bin to PATH to ensure build tools are accessible
+      export PATH="$PATH:./node_modules/.bin"
       
       # Make build script executable
       chmod +x render-build.sh
       echo "Running custom build script"
       bash render-build.sh
       
-    # Use our dedicated production script
+    # Use our dedicated production script with enhanced ESM compatibility
     # This will be used by Render.com as the primary start command
-    startCommand: NODE_ENV=production node --import tsx start.js
+    startCommand: NODE_ENV=production node --experimental-specifier-resolution=node start.js
     envVars:
       - key: NODE_ENV
         value: production
