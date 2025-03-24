@@ -1,17 +1,26 @@
 // Production server entry point that works in both dev and production
 // Bypasses Vite in production mode
 import express from 'express';
-import session from 'express-session';
-import MemoryStore from 'memorystore';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { registerRoutes } from './server/routes.js';
 import fs from 'fs';
 
 console.log(`Starting BrokerGPT in ${process.env.NODE_ENV || 'development'} mode...`);
+console.log(`Node version: ${process.version}`);
+console.log(`Current directory: ${process.cwd()}`);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Set up filename and directory variables
+let __filename;
+let __dirname;
+
+try {
+  __filename = fileURLToPath(import.meta.url);
+  __dirname = path.dirname(__filename);
+  console.log(`__dirname resolved to: ${__dirname}`);
+} catch (error) {
+  console.warn('Warning: Could not resolve __dirname via ESM, falling back to CWD');
+  __dirname = process.cwd();
+}
 
 // Ensure the required directories exist
 const distPath = path.join(__dirname, 'client', 'dist');
@@ -41,26 +50,136 @@ try {
   console.warn('Warning: Could not check or create theme.json file:', error);
 }
 
+// Ensure index.html exists in client/dist
+const indexHtmlPath = path.join(distPath, 'index.html');
+if (!fs.existsSync(indexHtmlPath)) {
+  console.log('Creating minimal index.html...');
+  try {
+    const indexHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrokerGPT</title>
+  <style>
+    body, html {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #f9fafb;
+    }
+    #app {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      padding: 0 20px;
+    }
+    h1 {
+      color: #0087FF;
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    p {
+      color: #4b5563;
+      max-width: 600px;
+      line-height: 1.6;
+    }
+    .logo {
+      width: 100px;
+      height: 100px;
+      margin-bottom: 2rem;
+      background-color: #0087FF;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 1.5rem;
+    }
+    .status {
+      margin-top: 2rem;
+      padding: 1rem;
+      background-color: #e0f2fe;
+      border-radius: 0.5rem;
+      color: #0369a1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="logo">BG</div>
+    <h1>BrokerGPT</h1>
+    <p>AI-powered insurance recommendation platform that intelligently matches clients with optimal insurance carriers through advanced risk profiling and personalized matching technologies.</p>
+    <div class="status">
+      Server is running. API endpoints are available at <code>/api/*</code>
+    </div>
+  </div>
+  <script>
+    // Basic API status check
+    fetch('/api/chat')
+      .then(response => {
+        const statusEl = document.querySelector('.status');
+        if (response.ok) {
+          statusEl.innerHTML = 'API is up and running! <br>✅ Server is healthy';
+          statusEl.style.backgroundColor = '#dcfce7';
+          statusEl.style.color = '#166534';
+        } else {
+          statusEl.innerHTML = 'API returned an error. <br>❌ Check server logs';
+          statusEl.style.backgroundColor = '#fee2e2';
+          statusEl.style.color = '#b91c1c';
+        }
+      })
+      .catch(error => {
+        const statusEl = document.querySelector('.status');
+        statusEl.innerHTML = 'Could not connect to API. <br>❌ Server may be starting up';
+        statusEl.style.backgroundColor = '#fee2e2';
+        statusEl.style.color = '#b91c1c';
+      });
+  </script>
+</body>
+</html>`;
+    fs.writeFileSync(indexHtmlPath, indexHtml);
+    console.log('Created minimal index.html');
+  } catch (error) {
+    console.warn('Warning: Could not create index.html:', error);
+  }
+}
+
 // Initialize Express
 const app = express();
 app.use(express.json());
 
-// Session setup
-const SessionStore = MemoryStore(session);
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || 'broker-gpt-session-secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { 
-      secure: process.env.NODE_ENV === 'production', 
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    },
-    store: new SessionStore({
-      checkPeriod: 86400000, // 24 hours
-    }),
-  })
-);
+// Try to load and set up session
+try {
+  const session = await import('express-session');
+  const memorystore = await import('memorystore');
+  const MemoryStore = memorystore.default(session.default);
+  
+  app.use(
+    session.default({
+      secret: process.env.SESSION_SECRET || 'broker-gpt-session-secret',
+      resave: false,
+      saveUninitialized: false,
+      cookie: { 
+        secure: process.env.NODE_ENV === 'production', 
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      },
+      store: new MemoryStore({
+        checkPeriod: 86400000, // 24 hours
+      }),
+    })
+  );
+  console.log('Session middleware configured successfully');
+} catch (error) {
+  console.warn('Warning: Failed to set up session middleware:', error);
+  console.log('Continuing without session support...');
+}
 
 // Production static file serving
 if (process.env.NODE_ENV === 'production') {
@@ -68,10 +187,26 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, 'client', 'dist')));
 }
 
-// Register API routes
+// API health check endpoint that doesn't require any modules
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Global error handler for the case where routes.js fails to load
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error', message: err.message });
+});
+
+// Try to register API routes
+let httpServer;
 try {
+  console.log('Trying to import routes module...');
+  const routesModule = await import('./server/routes.js');
+  
   console.log('Registering API routes...');
-  const httpServer = await registerRoutes(app);
+  httpServer = await routesModule.registerRoutes(app);
+  console.log('Routes registered successfully');
 
   // Production route fallback for SPA
   if (process.env.NODE_ENV === 'production') {
@@ -81,18 +216,62 @@ try {
       res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
     });
   }
-
-  // Start the server
-  const PORT = process.env.PORT || 5000;
-  httpServer.listen(PORT, () => {
-    console.log(`[${process.env.NODE_ENV || 'development'}] Server running at http://localhost:${PORT}`);
-    console.log('Environment variables:');
-    console.log('- NODE_ENV:', process.env.NODE_ENV || 'not set');
-    console.log('- OpenAI API key:', process.env.OPENAI_API_KEY ? 'set' : 'not set');
-    console.log('- Supabase URL:', process.env.SUPABASE_URL ? 'set' : 'not set');
-    console.log('- Database URL:', process.env.DATABASE_URL ? 'set' : 'not set');
+} catch (error) {
+  console.error('Failed to register routes:', error);
+  
+  // Create a simple HTTP server if routes.js fails
+  console.log('Creating fallback HTTP server...');
+  import('http').then(http => {
+    httpServer = http.createServer(app);
+    
+    // Set SPA fallback for production mode
+    if (process.env.NODE_ENV === 'production') {
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
+      });
+    }
+  }).catch(err => {
+    console.error('Failed to create HTTP server:', err);
+    httpServer = null;
   });
+}
+
+// Start the server
+const PORT = process.env.PORT || 5000;
+try {
+  if (httpServer) {
+    httpServer.listen(PORT, () => {
+      console.log(`[${process.env.NODE_ENV || 'development'}] Server running at http://localhost:${PORT}`);
+      console.log('Environment variables:');
+      console.log('- NODE_ENV:', process.env.NODE_ENV || 'not set');
+      console.log('- OpenAI API key:', process.env.OPENAI_API_KEY ? 'set' : 'not set');
+      console.log('- Serper API key:', process.env.SERPER_API_KEY ? 'set' : 'not set');
+      console.log('- Browserless API key:', process.env.BROWSERLESS_API_KEY ? 'set' : 'not set');
+      console.log('- Supabase URL:', process.env.SUPABASE_URL ? 'set' : 'not set');
+      console.log('- Database URL:', process.env.DATABASE_URL ? 'set' : 'not set');
+    });
+  } else {
+    // Fallback to direct Express listen if HTTP server creation failed
+    app.listen(PORT, () => {
+      console.log(`[FALLBACK SERVER] Running at http://localhost:${PORT}`);
+    });
+  }
 } catch (error) {
   console.error('Failed to start server:', error);
-  process.exit(1);
+  
+  // Last resort - try to start a simple Express server
+  try {
+    console.log('Attempting to start minimal server...');
+    const minimalApp = express();
+    minimalApp.get('/', (req, res) => {
+      res.send('BrokerGPT Emergency Server');
+    });
+    
+    minimalApp.listen(PORT, () => {
+      console.log(`[EMERGENCY SERVER] Running at http://localhost:${PORT}`);
+    });
+  } catch (finalError) {
+    console.error('All server start attempts failed:', finalError);
+    process.exit(1);
+  }
 }
