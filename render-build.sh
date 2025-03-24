@@ -4,6 +4,10 @@
 # Exit on error
 set -e
 
+# Run database migrations first
+echo "Running database migrations..."
+npm run db:push
+
 # Build client and server
 echo "Building client and server..."
 npm run build
