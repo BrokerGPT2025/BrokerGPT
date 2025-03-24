@@ -1,31 +1,14 @@
-// Static frontend generator for production deployment
+// Static frontend generator for production deployment (CommonJS version)
 // Creates a minimal but functional frontend when Vite build fails
-// This version supports both ESM and CommonJS
 
-let fs, path, __dirname;
+'use strict';
 
-// Check if we're in ESM or CommonJS mode
-const isESM = typeof import.meta !== 'undefined';
+// CommonJS imports
+const fs = require('fs');
+const path = require('path');
+// __dirname is already available in CommonJS
 
-if (isESM) {
-  // ESM imports
-  const module = await import('fs');
-  fs = module.default;
-  
-  const pathModule = await import('path');
-  path = pathModule.default;
-  
-  const { fileURLToPath } = await import('url');
-  const __filename = fileURLToPath(import.meta.url);
-  __dirname = pathModule.default.dirname(__filename);
-} else {
-  // CommonJS imports
-  fs = require('fs');
-  path = require('path');
-  // __dirname is already available in CommonJS
-}
-
-console.log('Starting static frontend generation...');
+console.log('Starting static frontend generation (CommonJS version)...');
 console.log(`Node version: ${process.version}`);
 console.log(`Current directory: ${process.cwd()}`);
 
@@ -635,14 +618,14 @@ document.addEventListener('DOMContentLoaded', () => {
         let html = '';
         carriers.forEach(carrier => {
           html += \`
-            <div class="card">
-              <h3>\${carrier.name || 'Unknown Carrier'}</h3>
-              <p>\${carrier.description || 'No description available'}</p>
-              <div>
-                <strong>Coverage Types:</strong>
-                <span>\${carrier.coverageTypes?.join(', ') || 'N/A'}</span>
+            <div class="card" data-carrier-id="\${carrier.id}">
+              <h3>\${carrier.name}</h3>
+              <p>\${carrier.description || 'No description available.'}</p>
+              <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem;">
+                \${(carrier.coverageTypes || []).map(type => 
+                  \`<span class="status status-success">\${type}</span>\`
+                ).join('')}
               </div>
-              <a href="/carriers/\${carrier.id}" class="btn btn-secondary" style="margin-top: 1rem;">Details</a>
             </div>
           \`;
         });
@@ -655,14 +638,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function filterClients(searchTerm) {
-    const clientsTableBody = document.getElementById('clients-table-body');
-    if (!clientsTableBody) return;
+    const rows = document.querySelectorAll('#clients-table-body tr');
+    if (!rows.length) return;
     
-    const rows = clientsTableBody.querySelectorAll('tr');
+    searchTerm = searchTerm.toLowerCase();
     
     rows.forEach(row => {
-      const text = row.textContent.toLowerCase();
-      if (text.includes(searchTerm.toLowerCase())) {
+      const clientName = row.cells[0]?.textContent.toLowerCase() || '';
+      const clientCompany = row.cells[1]?.textContent.toLowerCase() || '';
+      
+      if (clientName.includes(searchTerm) || clientCompany.includes(searchTerm)) {
         row.style.display = '';
       } else {
         row.style.display = 'none';
@@ -671,25 +656,31 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function filterCarriers() {
-    const carriersGrid = document.getElementById('carriers-grid');
-    if (!carriersGrid) return;
+    const carrierCards = document.querySelectorAll('#carriers-grid .card');
+    if (!carrierCards.length) return;
     
-    const filters = Array.from(document.querySelectorAll('.carrier-filter:checked')).map(el => el.value);
+    const selectedFilters = Array.from(document.querySelectorAll('.carrier-filter:checked')).map(
+      checkbox => checkbox.value
+    );
     
-    const cards = carriersGrid.querySelectorAll('.card');
-    
-    if (filters.length === 0) {
-      cards.forEach(card => {
+    if (selectedFilters.length === 0) {
+      // If no filters selected, show all
+      carrierCards.forEach(card => {
         card.style.display = '';
       });
       return;
     }
     
-    cards.forEach(card => {
-      const coverageText = card.querySelector('span')?.textContent.toLowerCase() || '';
-      const matches = filters.some(filter => coverageText.includes(filter));
+    carrierCards.forEach(card => {
+      const coverageTypes = Array.from(card.querySelectorAll('.status')).map(
+        span => span.textContent.toLowerCase()
+      );
       
-      if (matches) {
+      const hasMatch = selectedFilters.some(filter => 
+        coverageTypes.some(type => type.includes(filter))
+      );
+      
+      if (hasMatch) {
         card.style.display = '';
       } else {
         card.style.display = 'none';
@@ -697,19 +688,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Check API status initially
-  fetchApiStatus();
-  
-  // Load data for current page
-  const currentPath = window.location.pathname;
-  if (currentPath === '/clients') {
-    loadClients();
-  } else if (currentPath === '/carriers') {
-    loadCarriers();
-  }
-  
-  // Set up interval to check API status periodically
-  setInterval(fetchApiStatus, 30000);
+  // Initialize data loading
+  setTimeout(() => {
+    fetchApiStatus();
+    
+    // Load appropriate data based on current page
+    const path = window.location.pathname;
+    if (path === '/clients') {
+      loadClients();
+    } else if (path === '/carriers') {
+      loadCarriers();
+    } else if (path === '/') {
+      fetchApiStatus();
+    }
+  }, 100);
 });`;
 
 // Generate index.html
@@ -720,68 +712,35 @@ const indexHtml = `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BrokerGPT</title>
   <link rel="stylesheet" href="/styles.css">
-  <script src="/app.js"></script>
 </head>
 <body>
   <div class="app">
-    <aside class="sidebar">
+    <div class="sidebar">
       <div class="sidebar-logo">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25"></path>
-          <line x1="8" y1="16" x2="8.01" y2="16"></line>
-          <line x1="8" y1="20" x2="8.01" y2="20"></line>
-          <line x1="12" y1="18" x2="12.01" y2="18"></line>
-          <line x1="12" y1="22" x2="12.01" y2="22"></line>
-          <line x1="16" y1="16" x2="16.01" y2="16"></line>
-          <line x1="16" y1="20" x2="16.01" y2="20"></line>
-        </svg>
         BrokerGPT
       </div>
-      
       <nav>
-        <a href="/" class="nav-link">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-            <polyline points="9 22 9 12 15 12 15 22"></polyline>
-          </svg>
-          Dashboard
-        </a>
-        
-        <a href="/chat" class="nav-link">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-          </svg>
-          Chat
-        </a>
-        
-        <a href="/clients" class="nav-link">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-          Clients
-        </a>
-        
-        <a href="/carriers" class="nav-link">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-          </svg>
-          Carriers
-        </a>
+        <a href="/" class="nav-link">Dashboard</a>
+        <a href="/chat" class="nav-link">Chat</a>
+        <a href="/clients" class="nav-link">Clients</a>
+        <a href="/carriers" class="nav-link">Carriers</a>
       </nav>
-    </aside>
-    
-    <main class="main-content">
-      <!-- Content will be rendered here by JavaScript -->
-      <div class="card">
-        <h1>Loading...</h1>
-        <p>Please wait while we load the application.</p>
+      
+      <div style="margin-top: auto; padding-top: 1rem; font-size: 0.75rem; color: var(--text-secondary);">
+        <p>CommonJS Version</p>
+        <p>© ${new Date().getFullYear()} BrokerGPT</p>
       </div>
-    </main>
+    </div>
+    
+    <div class="main-content">
+      <!-- Content will be loaded here by JavaScript -->
+      <div style="text-align: center; padding: 2rem;">
+        <h2>Loading...</h2>
+      </div>
+    </div>
   </div>
+  
+  <script src="/app.js"></script>
 </body>
 </html>`;
 
@@ -797,7 +756,7 @@ console.log(`Generated: ${jsPath}`);
 
 // Create a basic asset file for auto-reload detection
 const assetIndexPath = path.join(assetsDir, 'index.js');
-fs.writeFileSync(assetIndexPath, '// Asset marker for auto-reload detection');
+fs.writeFileSync(assetIndexPath, '// Asset marker for auto-reload detection (CommonJS version)');
 console.log(`Generated: ${assetIndexPath}`);
 
-console.log('Static frontend generation completed successfully!');
+console.log('Static frontend generation completed successfully (CommonJS version)!');

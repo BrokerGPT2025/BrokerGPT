@@ -4,23 +4,61 @@ services:
     env: node
     plan: starter
     buildCommand: |
-      # Install dependencies with exact versions to avoid compatibility issues
+      echo "╔════════════════════════════════════════════════════════════╗"
+      echo "║          BROKERGPT DEPLOYMENT BUILD PROCESS                ║" 
+      echo "║      Enhanced Multi-step Vite + ESM Build Process          ║"
+      echo "╚════════════════════════════════════════════════════════════╝"
+      
+      # Install dependencies with exact versions
       npm ci
       
-      # Install build tools as local dependencies to ensure they're available in the PATH
-      npm install vite esbuild tsx
-      
-      # Add node_modules/.bin to PATH to ensure build tools are accessible
-      export PATH="$PATH:./node_modules/.bin"
-      
-      # Make build script executable
+      # Make all build scripts executable
       chmod +x render-build.sh
-      echo "Running custom build script"
+      chmod +x direct-vite-build.js
+      chmod +x verify-vite.js
+      chmod +x custom-vite-build.cjs
+      
+      # Install core build tools explicitly - multiple ways to ensure they're available
+      npm install vite@latest esbuild@latest tsx@latest @vitejs/plugin-react@latest
+      npm install -g vite@latest esbuild@latest
+      
+      # Try to use a dedicated CommonJS-mode build package as a temporary build environment
+      if [ -f "build-package.json" ]; then
+        echo "Using temporary CommonJS build package.json..."
+        cp build-package.json build-package.json.bak
+        mv build-package.json package.json
+        npm i
+      fi
+      
+      # Check if Vite is properly installed
+      node verify-vite.js
+      
+      # Use CommonJS build script first (most compatible) 
+      echo "Running custom Vite build script (CommonJS)..."
+      node custom-vite-build.cjs || true
+      
+      # Run our enhanced build script to handle all fallbacks
+      echo "Running complete render build script..."
       bash render-build.sh
       
-    # Use our dedicated production script with enhanced ESM compatibility
+      # Restore original package.json if we used the temporary one
+      if [ -f "build-package.json.bak" ]; then
+        mv build-package.json.bak package.json
+      fi
+      
+    # Try both ESM and CommonJS start scripts for maximum compatibility
     # This will be used by Render.com as the primary start command
-    startCommand: NODE_ENV=production node --experimental-specifier-resolution=node start.js
+    startCommand: >
+      NODE_ENV=production 
+      bash -c "
+        if [ -f start.cjs ]; then
+          echo 'Starting with CommonJS start script...'
+          node start.cjs || (echo 'CommonJS start failed, trying ESM version...' && node --experimental-specifier-resolution=node start.js)
+        else
+          echo 'Starting with ESM start script...'
+          node --experimental-specifier-resolution=node start.js
+        fi
+      "
     envVars:
       - key: NODE_ENV
         value: production
