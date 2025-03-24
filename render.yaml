@@ -12,8 +12,8 @@ services:
       echo "Running custom build script"
       bash render-build.sh
       
-    # Use the standard npm start but point to the correct location
-    startCommand: NODE_ENV=production npm start
+    # Use our custom run script that directly executes TypeScript
+    startCommand: NODE_ENV=production node run.js
     envVars:
       - key: NODE_ENV
         value: production
