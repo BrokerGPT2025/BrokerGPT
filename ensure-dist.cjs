@@ -21,10 +21,12 @@ if (!fs.existsSync(distDir)) {
 }
 
 // Content for index.js - using ESM format since that's what's expected
-// based on package.json type:module setting
-const indexContent = `// Fallback entry point for Render.com deployment
-// This script serves a minimal Express server without any external dependencies
-// Using ESM syntax based on package.json type:module setting
+// IMPORTANT: This content must never import vite or build tools directly 
+// because it will run in production where they may not be available
+const indexContent = `// STANDALONE EMERGENCY SERVER
+// This server has NO external dependencies outside of Node.js built-ins and Express
+// It is designed to run even when the main build fails
+// ⚠️ IMPORTANT: THIS FILE MUST NOT IMPORT VITE OR ANY BUILD TOOLS ⚠️
 
 import express from 'express';
 import path from 'path';
