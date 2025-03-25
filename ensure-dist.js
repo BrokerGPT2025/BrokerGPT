@@ -76,8 +76,8 @@ if (!staticPathFound) {
     fs.mkdirSync(clientDistPath, { recursive: true });
   }
   
-  // Create emergency HTML file
-  const emergencyHtml = \`<!DOCTYPE html>
+  // Create emergency HTML file with no dynamic template strings
+  const emergencyHtml = `<!DOCTYPE html>
 <html>
 <head>
   <title>BrokerGPT</title>
@@ -106,10 +106,8 @@ if (!staticPathFound) {
     <button onclick="checkStatus()">Check Again</button>
   </div>
   <div class="card">
-    <h2>Static Paths Checked</h2>
-    <ul>
-      ${possibleStaticPaths.map(p => \`<li>\${p}</li>\`).join('')}
-    </ul>
+    <h2>Static Paths</h2>
+    <div id="static-paths">Loading path information...</div>
   </div>
   <script>
     // Check API status
@@ -121,6 +119,17 @@ if (!staticPathFound) {
           document.getElementById('api-status').innerHTML = 
             '<p class="success">✅ API is online and working properly</p>' +
             '<p>Server time: ' + new Date(data.timestamp).toLocaleString() + '</p>';
+            
+          // Also update the static paths
+          if (data.staticPaths) {
+            const pathsList = document.getElementById('static-paths');
+            let html = '<ul>';
+            data.staticPaths.forEach(function(path) {
+              html += '<li>' + path.path + (path.exists ? ' ✓' : ' ✗') + '</li>';
+            });
+            html += '</ul>';
+            pathsList.innerHTML = html;
+          }
         })
         .catch(err => {
           document.getElementById('api-status').innerHTML = 
@@ -132,7 +141,7 @@ if (!staticPathFound) {
     checkStatus();
   </script>
 </body>
-</html>\`;
+</html>`;
   
   fs.writeFileSync(path.join(clientDistPath, 'index.html'), emergencyHtml);
   console.log('Created emergency index.html in client/dist');
