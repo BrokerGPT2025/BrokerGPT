@@ -34,10 +34,9 @@ if [ ! -d "client/dist" ]; then
   mkdir -p client/dist
 fi
 
-# Run database setup if environment variables are available
+# Verify database connection but do not create tables
 if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_KEY" ]; then
-  echo "Setting up database tables..."
-  node scripts/create-supabase-tables.js || echo "Database setup failed, continuing anyway"
+  echo "Database connection details are available"
 fi
 
 # List contents of important directories

@@ -43,22 +43,53 @@ async function connectToSupabase(attempt = 1): Promise<boolean> {
 
   try {
     console.log(`Supabase connection attempt ${attempt}/${MAX_CONNECTION_ATTEMPTS}...`);
-    supabase = supabaseClient(supabaseUrl, supabaseKey);
     
-    // Just assume connection is successful - we'll find out later if it's not
-    // No need to verify with a query since that was causing issues
+    // Create Supabase client
+    supabase = supabaseClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      },
+      global: {
+        headers: {
+          'X-Client-Info': 'brokerGPT-server'
+        }
+      }
+    });
     
-    console.log('Successfully connected to Supabase');
+    // Actually test the connection with a simple query
+    // We'll run a query that should work regardless of schema
+    console.log('Testing Supabase connection with real query...');
+    const { data, error } = await supabase
+      .from('clients')
+      .select('count(*)')
+      .limit(1);
+      
+    if (error) {
+      if (error.code === '42P01') {
+        // Table doesn't exist, but connection works
+        console.log('Supabase connection successful, but clients table not found');
+        return true;
+      }
+      throw error;
+    }
+    
+    console.log(`Successfully connected to Supabase and found clients table`);
     return true;
   } catch (error) {
     console.error(`Supabase connection attempt ${attempt} failed:`, error);
+    
+    // Log additional info about the error
+    if (error.code) {
+      console.error(`Error code: ${error.code}, message: ${error.message}`);
+    }
     
     if (attempt < MAX_CONNECTION_ATTEMPTS) {
       console.log(`Retrying in ${CONNECTION_RETRY_DELAY/1000} seconds...`);
       await new Promise(resolve => setTimeout(resolve, CONNECTION_RETRY_DELAY));
       return connectToSupabase(attempt + 1);
     } else {
-      console.warn(`Failed to connect to Supabase after ${MAX_CONNECTION_ATTEMPTS} attempts. Using fallback.`);
+      console.warn(`Failed to connect to Supabase after ${MAX_CONNECTION_ATTEMPTS} attempts.`);
       return false;
     }
   }
