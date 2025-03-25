@@ -126,14 +126,10 @@ let serverStarted = false;
       }, 300000); // 5 minute timeout (300,000 ms)
       
       try {
-        // Create a custom stdout handler to detect the success signal
-        const stdioOptions = { 
-          stdout: 'pipe', // Capture stdout to look for success signal
-          stderr: 'inherit' 
-        };
-        
+        // Create a custom stdio configuration to detect the success signal
+        // stdio must be an array of ['pipe', process.stderr, process.stderr] for [stdin, stdout, stderr]
         const mainServer = spawn('node', ['dist/index.js'], {
-          stdio: stdioOptions,
+          stdio: ['ignore', 'pipe', process.stderr], // pipe stdout to capture success signal
           env: { ...process.env, NODE_ENV: 'production' }
         });
         
