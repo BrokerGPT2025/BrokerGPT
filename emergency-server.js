@@ -7,6 +7,21 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'net';
+import dns from 'dns';
+
+// Force IPv4 for all DNS lookups and connections
+dns.setDefaultResultOrder('ipv4first');
+
+// Monkey patch Socket.connect to force IPv4
+const net = await import('net');
+const originalConnect = net.Socket.prototype.connect;
+net.Socket.prototype.connect = function(options, ...args) {
+  if (typeof options === 'object' && options.host) {
+    console.log(`Socket connecting to ${options.host}:${options.port || ''}, forcing IPv4...`);
+    options.family = 4; // Force IPv4
+  }
+  return originalConnect.call(this, options, ...args);
+};
 
 // Get dirname in ESM context
 const __filename = fileURLToPath(import.meta.url);

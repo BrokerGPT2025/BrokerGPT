@@ -1,3 +1,6 @@
+// Force IPv4 before any other imports to ensure all connections use IPv4
+import './ipv4-enforcer';
+
 import 'dotenv/config'; // Load environment variables from .env file
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";

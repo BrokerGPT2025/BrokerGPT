@@ -1,5 +1,22 @@
 // Simple test to check our Supabase connection and tables
 import { createClient } from '@supabase/supabase-js';
+import dns from 'dns';
+import net from 'net';
+
+// Force IPv4 for all DNS lookups and connections
+console.log('Setting DNS to prefer IPv4...');
+dns.setDefaultResultOrder('ipv4first');
+
+// Monkey patch Socket.connect to force IPv4
+console.log('Patching Socket.connect to force IPv4...');
+const originalConnect = net.Socket.prototype.connect;
+net.Socket.prototype.connect = function(options, ...args) {
+  if (typeof options === 'object' && options.host) {
+    console.log(`Socket connecting to ${options.host}:${options.port || ''}, forcing IPv4...`);
+    options.family = 4; // Force IPv4
+  }
+  return originalConnect.call(this, options, ...args);
+};
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;

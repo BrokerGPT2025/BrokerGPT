@@ -7,6 +7,9 @@ import * as supabase from './supabase';
 import { ZodError } from "zod";
 import { pool, isDatabaseAvailable } from './db';
 
+// Import the IPv4 enforcer to ensure all network connections use IPv4
+import './ipv4-enforcer';
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Add CORS middleware for cross-origin requests
   app.use((req: Request, res: Response, next: NextFunction) => {
