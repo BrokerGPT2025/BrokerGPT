@@ -5,6 +5,7 @@ import * as schema from "@shared/schema";
 // Explicitly import the function to avoid TypeScript issues
 import createTables from "../scripts/create-tables.ts";
 import pg from 'pg';
+import net from 'net';
 
 // Configure neon for WebSocket support
 neonConfig.webSocketConstructor = ws;
@@ -28,6 +29,135 @@ const MAX_CONNECTION_ATTEMPTS = 5;
 const CONNECTION_RETRY_DELAY = 3000;
 
 /**
+ * Special patched version of pg to force IPv4
+ * This is a workaround for the ENETUNREACH IPv6 issues on Render.com
+ */
+function patchPgForIPv4() {
+  console.log('📍 Patching pg module to force IPv4 connections...');
+  
+  try {
+    // Monkey patch Socket.connect to force IPv4
+    const originalConnect = net.Socket.prototype.connect;
+    
+    // @ts-ignore - we're monkey patching
+    net.Socket.prototype.connect = function(options: any, ...args: any[]) {
+      if (typeof options === 'object' && options.host) {
+        console.log(`⚙️ Socket connecting to ${options.host}:${options.port}, forcing IPv4...`);
+        options.family = 4; // Force IPv4
+        
+        // For debugging - log the connection details
+        if (process.env.NODE_ENV === 'production') {
+          console.log(`Connection details: family=${options.family}, port=${options.port}`);
+        }
+      }
+      return originalConnect.call(this, options, ...args);
+    };
+    
+    console.log('✅ Successfully patched Socket.connect to force IPv4');
+    return true;
+  } catch (error) {
+    console.error('❌ Failed to patch Socket.connect:', error);
+    return false;
+  }
+}
+
+// Apply the patch immediately
+patchPgForIPv4();
+
+/**
+ * Extract hostname and port from PostgreSQL connection string
+ */
+function extractHostInfo(connectionString: string): { host: string; port: number } | null {
+  try {
+    const match = connectionString.match(/postgres(?:ql)?:\/\/.*:.*@([^:]+):(\d+)\/.*$/);
+    if (match) {
+      return {
+        host: match[1],
+        port: parseInt(match[2], 10)
+      };
+    }
+  } catch (e) {
+    console.error('Error parsing connection string:', e);
+  }
+  return null;
+}
+
+/**
+ * Manual test of IPv4 connectivity
+ * This helps identify if the issue is with pg or with actual network connectivity
+ */
+async function testIPv4Connectivity(host: string, port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    console.log(`🧪 Testing direct IPv4 connectivity to ${host}:${port}...`);
+    const socket = new net.Socket();
+    let connected = false;
+    
+    // Set a timeout for the connection attempt
+    socket.setTimeout(5000);
+    
+    socket.on('connect', () => {
+      console.log(`✅ Successfully connected to ${host}:${port} via IPv4`);
+      connected = true;
+      socket.end();
+      resolve(true);
+    });
+    
+    socket.on('timeout', () => {
+      console.log(`⏱️ Connection timeout to ${host}:${port}`);
+      socket.destroy();
+      resolve(false);
+    });
+    
+    socket.on('error', (err) => {
+      console.log(`❌ Direct connection error to ${host}:${port}: ${err.message}`);
+      resolve(false);
+    });
+    
+    // Force IPv4
+    socket.connect({ host, port, family: 4 });
+  });
+}
+
+/**
+ * Handle unavailable database by providing error info
+ */
+function handleUnavailableDatabase(error: any) {
+  // Log a very clear error message
+  console.error('\n==================================================');
+  console.error('❌❌❌ DATABASE CONNECTION FAILED ❌❌❌');
+  console.error('==================================================');
+  console.error('The application failed to connect to the database.');
+  
+  if (error) {
+    console.error('Error details:');
+    console.error(`  - Code: ${error.code || 'N/A'}`);
+    console.error(`  - Message: ${error.message || 'Unknown error'}`);
+    
+    if (error.code === 'ENETUNREACH') {
+      console.error('\nNetwork is unreachable. This is often an IPv6 vs IPv4 issue.');
+      console.error('Suggestions:');
+      console.error('1. Check if the database hostname is accessible from this server');
+      console.error('2. Verify that the database service is running and accepting connections');
+      console.error('3. Make sure firewall rules allow connections from this server');
+    } else if (error.code === 'ENOTFOUND') {
+      console.error('\nHost not found. DNS resolution failed.');
+      console.error('Suggestions:');
+      console.error('1. Verify that the database hostname is correct');
+      console.error('2. Check if DNS service is working correctly');
+    } else if (error.code === 'ETIMEDOUT') {
+      console.error('\nConnection timed out.');
+      console.error('Suggestions:');
+      console.error('1. Check if database server is running');
+      console.error('2. Verify network connectivity between app and database');
+      console.error('3. Check firewall rules or security groups');
+    }
+  }
+  
+  console.error('\nThe application will continue but database features will not work.');
+  console.error('==================================================\n');
+}
+
+/**
  * Attempts to connect to the PostgreSQL database
  * @param attempt Current attempt number
  * @returns True if connection successful, false otherwise
@@ -41,39 +171,15 @@ async function attemptDatabaseConnection(attempt = 1): Promise<boolean> {
   try {
     console.log(`PostgreSQL connection attempt ${attempt}/${MAX_CONNECTION_ATTEMPTS}...`);
     
-    // Log connection info (without credentials)
-    const dbUrlParts = process.env.DATABASE_URL.split('@');
-    if (dbUrlParts.length > 1) {
-      console.log(`Attempting to connect to: ${dbUrlParts[1].split('/')[0]}`);
+    // Extract hostname and port for direct testing
+    const hostInfo = extractHostInfo(process.env.DATABASE_URL);
+    if (hostInfo) {
+      console.log(`Attempting to connect to: ${hostInfo.host}:${hostInfo.port}`);
       
-      // Extract hostname from connection string
-      const hostnamePart = dbUrlParts[1].split('/')[0];
-      const hostname = hostnamePart.split(':')[0];
-      console.log(`Extracted hostname: ${hostname}`);
-      
-      // Try to resolve hostname to IPv4 address
-      try {
-        const dns = await import('dns');
-        const dnsPromise = new Promise<string>((resolve, reject) => {
-          dns.lookup(hostname, { family: 4 }, (err, address) => {
-            if (err) {
-              console.error(`DNS resolution failed: ${err.message}`);
-              reject(err);
-            } else {
-              console.log(`✅ Successfully resolved ${hostname} to IPv4 address: ${address}`);
-              resolve(address);
-            }
-          });
-        });
-        
-        // Wait up to 5 seconds for DNS resolution
-        await Promise.race([
-          dnsPromise,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('DNS resolution timeout')), 5000))
-        ]);
-      } catch (dnsError) {
-        console.error(`DNS resolution issue: ${dnsError.message}`);
-        // Continue anyway, pg will retry
+      // Test direct IPv4 connectivity
+      const canConnect = await testIPv4Connectivity(hostInfo.host, hostInfo.port);
+      if (!canConnect) {
+        console.log('⚠️ Direct IPv4 connection test failed, but continuing with pg client attempt');
       }
     }
     
@@ -95,6 +201,12 @@ async function attemptDatabaseConnection(attempt = 1): Promise<boolean> {
       console.log("Neon PostgreSQL database connection initialized successfully");
     } else {
       console.log('Using standard PostgreSQL connection with pg');
+      
+      // Extract host and port info
+      const hostInfo = extractHostInfo(process.env.DATABASE_URL);
+      if (hostInfo) {
+        console.log(`Extracted host info: ${hostInfo.host}:${hostInfo.port}`);
+      }
       
       // Build connection options with optimizations for Render.com
       const connectionOptions: pg.PoolConfig = {
@@ -154,6 +266,8 @@ async function attemptDatabaseConnection(attempt = 1): Promise<boolean> {
       return attemptDatabaseConnection(attempt + 1);
     } else {
       console.error(`❌ Failed to connect after ${MAX_CONNECTION_ATTEMPTS} attempts.`);
+      // Provide helpful error info
+      handleUnavailableDatabase(error);
       return false;
     }
   }
@@ -191,6 +305,7 @@ async function initializeDatabase() {
 // Initialize database
 initializeDatabase().catch(err => {
   console.error("Database initialization failed:", err);
+  handleUnavailableDatabase(err);
 });
 
 // Export pool and db, which might be null if connection failed
