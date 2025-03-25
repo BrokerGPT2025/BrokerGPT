@@ -40,9 +40,8 @@ const indexContent = '// STANDALONE EMERGENCY SERVER\n' +
 'console.log(\'Node version: \' + process.version);\n' +
 'console.log(\'Current directory: \' + process.cwd());\n' +
 '\n' +
-'// Get directory name in ESM context\n' +
-'const __filename = fileURLToPath(import.meta.url);\n' +
-'const __dirname = path.dirname(__filename);\n' +
+'// Get directory name in ESM context (using single line to avoid duplicate declarations)\n' +
+'const __dirname = path.dirname(fileURLToPath(import.meta.url));\n' +
 '\n' +
 '// Initialize Express\n' +
 'const app = express();\n' +
@@ -172,9 +171,8 @@ const indexContent = '// STANDALONE EMERGENCY SERVER\n' +
 '  console.log(\'- PORT: \' + PORT);\n' +
 '});';
 
-// Get directory name in ESM context
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// __filename and __dirname are already defined at the top of this file
+// Don't redeclare them here
 
 // Initialize Express
 const app = express();

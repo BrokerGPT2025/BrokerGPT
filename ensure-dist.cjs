@@ -39,9 +39,8 @@ const indexContent = '// STANDALONE EMERGENCY SERVER\n' +
 'console.log(\'Node version: \' + process.version);\n' +
 'console.log(\'Current directory: \' + process.cwd());\n' +
 '\n' +
-'// Get directory name in ESM context\n' +
-'const __filename = fileURLToPath(import.meta.url);\n' +
-'const __dirname = path.dirname(__filename);\n' +
+'// Get directory name in ESM context (only needed in ESM, not CommonJS)\n' +
+'const __dirname = path.dirname(fileURLToPath(import.meta.url));\n' +
 '\n' +
 '// Initialize Express\n' +
 'const app = express();\n' +
