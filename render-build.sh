@@ -15,9 +15,19 @@ echo "Current directory: $(pwd)"
 echo "Node version: $(node -v)"
 echo "NPM version: $(npm -v)"
 
-# Install required dependencies
-echo "Installing dependencies..."
-npm ci
+# Set NPM to avoid install optional dependencies to save time
+export NPM_CONFIG_OMIT=optional
+export NODE_ENV=production
+
+# Install required dependencies with a timeout
+echo "Installing dependencies (production only)..."
+timeout 600 npm ci --production --prefer-offline || echo "npm ci timed out or failed, continuing with pruned install"
+
+# If it fails, try with npm install which is faster
+if [ $? -ne 0 ]; then
+  echo "Using npm install as fallback..."
+  npm install --production --prefer-offline --no-optional
+fi
 
 # Run specialized Vite installer to ensure it's available in all forms
 echo "Running specialized Vite installer..."

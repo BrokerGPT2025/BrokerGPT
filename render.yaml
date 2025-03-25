@@ -9,17 +9,17 @@ services:
       echo "║      Enhanced Multi-step Vite + ESM Build Process          ║"
       echo "╚════════════════════════════════════════════════════════════╝"
       
-      # Install dependencies with exact versions
-      npm ci
+      # Set memory limits to avoid OOM crashes
+      export NODE_OPTIONS="--max-old-space-size=384"
+      
+      # Install dependencies with production flag to save time and space
+      NODE_ENV=production npm ci --production || npm install --production --no-optional
       
       # Make all build scripts executable
-      chmod +x render-build.sh
-      chmod +x direct-vite-build.js
-      chmod +x verify-vite.js
-      chmod +x custom-vite-build.cjs
-      chmod +x install-vite.cjs
-      chmod +x vite-run.cjs
-      chmod +x render-build-special.cjs
+      find . -name "*.sh" -exec chmod +x {} \;
+      
+      # Create a guaranteed emergency server regardless of build success
+      node fix-emergency-server.js || echo "Failed to create emergency server, but continuing"
       
       # Run our advanced Vite installer first
       echo "Running advanced Vite installer..."
@@ -57,17 +57,45 @@ services:
         mv build-package.json.bak package.json
       fi
       
-    # Try both ESM and CommonJS start scripts for maximum compatibility
+    # Comprehensive startup command with multiple fallbacks
     # This will be used by Render.com as the primary start command
     startCommand: >
       NODE_ENV=production 
       bash -c "
-        if [ -f start.cjs ]; then
-          echo 'Starting with CommonJS start script...'
-          node start.cjs || (echo 'CommonJS start failed, trying ESM version...' && node --experimental-specifier-resolution=node start.js)
-        else
-          echo 'Starting with ESM start script...'
-          node --experimental-specifier-resolution=node start.js
+        # Set memory limits to prevent OOM crashes
+        export NODE_OPTIONS='--max-old-space-size=384'
+        
+        # First try our universal production starter script
+        if [ -f start-production.js ]; then
+          echo 'Starting with universal production script...'
+          node start-production.js || echo 'Universal starter failed, trying alternatives...'
+        fi
+
+        # If that fails, try the emergency server directly
+        if [ $? -ne 0 ] && [ -f emergency-server.js ]; then
+          echo 'Starting emergency server directly...'
+          node emergency-server.js || echo 'Emergency server failed, trying fallbacks...'
+        fi
+
+        # If even that fails, try dist/index.js
+        if [ $? -ne 0 ] && [ -f dist/index.js ]; then
+          echo 'Starting from dist/index.js...'
+          node dist/index.js || echo 'All server starts failed!'
+        fi
+
+        # Create a guaranteed minimal server as last resort
+        if [ $? -ne 0 ]; then
+          echo 'Creating and starting minimal HTTP server...'
+          cat > minimal-server.js << 'EOL'
+import http from 'http';
+const server = http.createServer((req, res) => {
+  res.writeHead(200, {'Content-Type': 'text/html'});
+  res.end('<html><body><h1>BrokerGPT</h1><p>Minimal server is running. All other starts failed.</p></body></html>');
+});
+server.listen(process.env.PORT || 10000, '0.0.0.0');
+console.log('Minimal HTTP server running on port ' + (process.env.PORT || 10000));
+EOL
+          node minimal-server.js
         fi
       "
     envVars:

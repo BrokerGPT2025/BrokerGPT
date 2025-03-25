@@ -6,12 +6,44 @@ import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
 
+// Try to load dotenv if available
+try {
+  // Dynamic import to avoid issues if dotenv isn't installed
+  const dotenv = await import('dotenv');
+  dotenv.config();
+  console.log('Environment variables loaded from .env file');
+} catch (err) {
+  console.log('No dotenv found or .env file missing - using system environment variables');
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 console.log('🚀 UNIVERSAL PRODUCTION STARTUP SCRIPT 🚀');
 console.log(`Node version: ${process.version}`);
 console.log(`Working directory: ${process.cwd()}`);
+
+// Log sanitized environment variables for debugging
+console.log('Environment variables:');
+console.log(`- NODE_ENV: ${process.env.NODE_ENV || 'not set'}`);
+console.log(`- PORT: ${process.env.PORT || 'not set'}`);
+console.log(`- Database: ${process.env.DATABASE_URL ? 'configured ✓' : 'not configured ✗'}`);
+console.log(`- Supabase: ${process.env.SUPABASE_URL && process.env.SUPABASE_KEY ? 'configured ✓' : 'not configured ✗'}`);
+console.log(`- OpenAI: ${process.env.OPENAI_API_KEY ? 'configured ✓' : 'not configured ✗'}`);
+console.log(`- Memory limit: ${process.env.NODE_OPTIONS || 'default'}`);
+
+// Check for minimum required environment variables
+if (!process.env.NODE_ENV) {
+  console.log('NODE_ENV not set, defaulting to production');
+  process.env.NODE_ENV = 'production';
+}
+
+// Set memory limits for Render's 512MB environment if not already set
+if (!process.env.NODE_OPTIONS && process.env.NODE_ENV === 'production') {
+  // Set memory limit to 75% of available memory to prevent OOM issues
+  process.env.NODE_OPTIONS = '--max-old-space-size=384';
+  console.log(`Set memory limit to 384MB for production environment`);
+}
 
 // Define an immediate function to allow top-level await
 (async function main() {
