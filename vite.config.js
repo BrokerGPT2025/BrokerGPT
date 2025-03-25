@@ -1,12 +1,7 @@
 // Simplified Vite configuration for builds
-// This file is specifically designed to help Render.com deployments work properly
-// Can be used alongside the TypeScript version (vite.config.ts)
+// CommonJS compatible version that works in all environments
 
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
-
-export default defineConfig({
+module.exports = {
   // Basic build settings
   root: '.',
   publicDir: 'public',
@@ -14,12 +9,12 @@ export default defineConfig({
   // Resolve aliases
   resolve: {
     alias: {
-      '@': resolve(__dirname, './client/src'),
+      '@': require('path').resolve(__dirname, './client/src'),
     },
   },
   
   // Plugins
-  plugins: [react()],
+  plugins: [require('@vitejs/plugin-react')()],
   
   // Build configuration
   build: {
@@ -29,7 +24,7 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'client/index.html'),
+        main: require('path').resolve(__dirname, 'client/index.html'),
       },
     },
   },
@@ -38,4 +33,4 @@ export default defineConfig({
   esbuild: {
     jsxInject: "import React from 'react'",
   },
-});
+};

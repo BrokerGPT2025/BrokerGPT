@@ -1,27 +1,13 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
-import { fileURLToPath } from "url";
+// Ultra-minimal Vite config that works in every environment
+// CommonJS format for maximum compatibility
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "client", "src"),
-      "@shared": path.resolve(__dirname, "shared"),
-    },
-  },
-  root: path.resolve(__dirname, "client"),
+module.exports = {
+  root: '.',
+  publicDir: 'public',
+  plugins: [],
   build: {
-    outDir: path.resolve(__dirname, "dist/public"),
+    outDir: 'client/dist',
     emptyOutDir: true,
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, "client/index.html")
-      }
-    }
-  },
-});
+    minify: true
+  }
+};
