@@ -1,7 +1,16 @@
-// Simplified Vite configuration for builds
-// CommonJS compatible version that works in all environments
+// Simplified Vite configuration for builds - ESM version
+// For use with package.json type:module projects
 
-module.exports = {
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get dirname equivalent in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default defineConfig({
   // Basic build settings
   root: '.',
   publicDir: 'public',
@@ -9,12 +18,12 @@ module.exports = {
   // Resolve aliases
   resolve: {
     alias: {
-      '@': require('path').resolve(__dirname, './client/src'),
+      '@': path.resolve(__dirname, './client/src'),
     },
   },
   
   // Plugins
-  plugins: [require('@vitejs/plugin-react')()],
+  plugins: [react()],
   
   // Build configuration
   build: {
@@ -24,7 +33,7 @@ module.exports = {
     sourcemap: false,
     rollupOptions: {
       input: {
-        main: require('path').resolve(__dirname, 'client/index.html'),
+        main: path.resolve(__dirname, 'client/index.html'),
       },
     },
   },
@@ -33,4 +42,4 @@ module.exports = {
   esbuild: {
     jsxInject: "import React from 'react'",
   },
-};
+});
