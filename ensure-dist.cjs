@@ -139,7 +139,7 @@ if (!staticPathFound) {
     checkStatus();
   </script>
 </body>
-</html>`;
+</html>`.replace(/\${/g, '\\${');
   
   fs.writeFileSync(path.join(clientDistPath, 'index.html'), emergencyHtml);
   console.log('Created emergency index.html in client/dist');

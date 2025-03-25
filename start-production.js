@@ -377,7 +377,6 @@ let serverStarted = false;
         process.exit(1);
       }
     }
-    }
   } catch (startupError) {
     console.error('Catastrophic startup error:', startupError);
     process.exit(1);
