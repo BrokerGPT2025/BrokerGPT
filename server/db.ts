@@ -50,7 +50,10 @@ async function attemptDatabaseConnection(attempt = 1): Promise<boolean> {
     // Choose the appropriate connection method
     if (isNeonDbUrl) {
       // For Neon.tech (serverless)
-      pool = new Pool({ connectionString: process.env.DATABASE_URL });
+      pool = new Pool({ 
+        connectionString: process.env.DATABASE_URL,
+        connect_timeout: 10, // Increase timeout for initial connection
+      });
       
       // Verify the connection works with a simple query
       await pool.query('SELECT NOW()');
@@ -59,10 +62,17 @@ async function attemptDatabaseConnection(attempt = 1): Promise<boolean> {
       console.log("Neon PostgreSQL database connection initialized successfully");
     } else {
       // For standard PostgreSQL (Replit, Render, etc.)
-      pgPool = new pg.Pool({
+      // Force IPv4 connections to avoid IPv6 ENETUNREACH errors
+      const connectionOptions: pg.PoolConfig = {
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-      });
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        // Force IPv4
+        family: 4,
+        // Increase connection timeout
+        connectionTimeoutMillis: 10000
+      };
+      
+      pgPool = new pg.Pool(connectionOptions);
       
       // Verify the connection works with a simple query
       await pgPool.query('SELECT NOW()');

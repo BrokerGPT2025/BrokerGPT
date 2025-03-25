@@ -12,6 +12,7 @@
     "start": "NODE_ENV=production node dist/index.js",
     "diagnose": "node simple-server.js",
     "static:generate": "node static-frontend.js",
+    "db:setup": "node scripts/create-supabase-tables.js",
     "check": "tsc",
     "db:push": "drizzle-kit push"
   },
