@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 // Direct Vite Build Script
 // This script manually executes Vite's build functionality
-// bypassing ESM loading issues
-const { spawn, execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+// Using ESM syntax for compatibility with package.json type:module
+import { spawn, execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 console.log("🚀 DIRECT VITE BUILD SCRIPT 🚀");
 console.log(`Running in directory: ${process.cwd()}`);
@@ -96,13 +100,17 @@ async function runViteBuild() {
   return new Promise((resolve) => {
     console.log("Attempting Vite build...");
     
-    // Create a simple vite.config.js for compatibility
+    // Create a simple vite.config.js for compatibility with ESM
     const config = `
-const { defineConfig } = require('vite');
-const react = require('@vitejs/plugin-react');
-const path = require('path');
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-module.exports = defineConfig({
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default defineConfig({
   root: '.',
   publicDir: 'public',
   plugins: [react()],
@@ -124,11 +132,11 @@ module.exports = defineConfig({
   }
 });`;
     
-    fs.writeFileSync('vite.config.cjs', config);
+    fs.writeFileSync('vite.config.js', config);
     
-    // Try with a CommonJS version
-    console.log("Building with CommonJS config...");
-    const childProcess = spawn('npx', ['vite', 'build', '--config', 'vite.config.cjs'], {
+    // Try with an ESM version
+    console.log("Building with ESM config...");
+    const childProcess = spawn('npx', ['vite', 'build'], {
       stdio: 'inherit',
       env: {
         ...process.env,

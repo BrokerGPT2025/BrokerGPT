@@ -118,9 +118,10 @@ async function buildFrontend() {
     // If direct build fails, try alternative approaches
     console.log('Direct Vite build failed, trying alternative approach...');
     
-    // Try using Vite's JavaScript API
+    // Try using Vite's JavaScript API (ESM-compatible version)
     const viteBuildScript = `
-      const { build } = require('vite');
+      // ESM-compatible Vite build script
+      import { build } from 'vite';
       
       async function buildApp() {
         try {
