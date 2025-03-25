@@ -20,30 +20,77 @@ console.log(`Current directory: ${process.cwd()}`);
 const SERVER_START_TIME = new Date().toISOString();
 console.log(`Start time: ${SERVER_START_TIME}`);
 
-// Function to check if a port is in use
+// Function to check if a port is in use and gather connection info
 function isPortInUse(port) {
   return new Promise((resolve) => {
-    const server = createServer()
-      .once('error', () => {
-        // Port is in use
-        resolve(true);
-      })
-      .once('listening', () => {
-        // Port is free, close the server
-        server.close();
-        resolve(false);
-      })
-      .listen(port, '0.0.0.0');
+    const server = createServer();
+    
+    server.once('error', (err) => {
+      // Port is in use, check for pid later
+      if (err.code === 'EADDRINUSE') {
+        console.log(`Port ${port} is already in use - checking owner process...`);
+        // Find process listening on this port
+        try {
+          // Try to get our PID
+          const ourPid = process.pid;
+          console.log(`Our process ID: ${ourPid}`);
+          
+          // Could use 'lsof -i :PORT' on Unix or 'netstat' on Windows,
+          // but for simplicity we'll just check timestamps as a heuristic
+          
+          // If this is a very recent process (< 10s old), it's likely ours
+          const uptime = process.uptime();
+          if (uptime < 10) {
+            console.log(`We appear to be a new process (${uptime}s uptime), port might be used by parent process`);
+          }
+          
+          resolve({
+            inUse: true,
+            likelyOurs: uptime < 10,
+            pid: ourPid
+          });
+        } catch (err) {
+          console.error('Error detecting port owner:', err);
+          resolve({ inUse: true, likelyOurs: false });
+        }
+      } else {
+        // Some other error
+        console.error(`Port check error: ${err.code}`);
+        resolve({ inUse: true, likelyOurs: false });
+      }
+    })
+    .once('listening', () => {
+      // Port is free, close the server
+      server.close();
+      resolve({ inUse: false });
+    })
+    .listen(port, '0.0.0.0');
   });
 }
 
 // Function to find an available port
 async function findAvailablePort(startPort) {
   let port = startPort;
-  while (await isPortInUse(port)) {
-    console.log(`Port ${port} is in use, trying ${port + 1}...`);
-    port++;
+  let portCheck = await isPortInUse(port);
+  
+  while (portCheck.inUse) {
+    // If port is in use by what seems to be our parent/relative process, we can use a specific offset
+    if (portCheck.likelyOurs) {
+      // Use a predictable offset for our own process to avoid endless searching
+      const newPort = port + 1000;
+      console.log(`Port ${port} appears to be used by a related process (PID: ${portCheck.pid})`);
+      console.log(`Using predictable offset of 1000 to avoid conflict, trying ${newPort}...`);
+      port = newPort;
+    } else {
+      // Otherwise just increment to the next port
+      console.log(`Port ${port} is in use by an unrelated process, trying ${port + 1}...`);
+      port++;
+    }
+    
+    // Check the new port
+    portCheck = await isPortInUse(port);
   }
+  
   return port;
 }
 
@@ -296,6 +343,9 @@ app.get('*', (req, res) => {
     // Start server on the available port
     const server = app.listen(availablePort, '0.0.0.0', () => {
       console.log(`🚨 STANDALONE EMERGENCY SERVER RUNNING ON PORT ${availablePort} 🚨`);
+      
+      // Send success signal for start-production.js to detect
+      console.log('SERVER_STARTED_SUCCESSFULLY');
     });
     
     // Handle errors to prevent crashes

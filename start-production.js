@@ -116,24 +116,53 @@ let serverStarted = false;
     if (distExists && !serverStarted) {
       console.log('Attempting to start the regular server from dist/index.js...');
       
-      // Set a timeout to prevent hanging indefinitely
+      // Set a timeout to prevent hanging indefinitely (increased to 5 minutes)
+      console.log('Setting server startup timeout of 5 minutes...');
       const timeout = setTimeout(() => {
         if (!serverStarted) {
-          console.log('⚠️ Regular server startup timed out. Switching to emergency server...');
+          console.log('⚠️ Regular server startup timed out after 5 minutes. Switching to emergency server...');
           startEmergencyServer();
         }
-      }, 10000); // 10 second timeout
+      }, 300000); // 5 minute timeout (300,000 ms)
       
       try {
+        // Create a custom stdout handler to detect the success signal
+        const stdioOptions = { 
+          stdout: 'pipe', // Capture stdout to look for success signal
+          stderr: 'inherit' 
+        };
+        
         const mainServer = spawn('node', ['dist/index.js'], {
-          stdio: 'inherit',
+          stdio: stdioOptions,
           env: { ...process.env, NODE_ENV: 'production' }
+        });
+        
+        // Process stdout to detect success signal
+        mainServer.stdout.on('data', (data) => {
+          // Pass the output to the parent process's stdout
+          process.stdout.write(data);
+          
+          // Check for success signal
+          const output = data.toString();
+          if (output.includes('SERVER_STARTED_SUCCESSFULLY')) {
+            console.log('✅ Detected server startup success signal');
+            serverStarted = true;
+            clearTimeout(timeout);
+          }
+          
+          // Also check for running message as a secondary signal
+          if (output.includes('Running at http://localhost:')) {
+            console.log('⚠️ Server appears to be running, but waiting for explicit success signal...');
+          }
         });
         
         mainServer.on('error', (err) => {
           console.error(`Regular server error: ${err.message}`);
           clearTimeout(timeout);
-          startEmergencyServer();
+          if (!serverStarted) {
+            serverStarted = true; 
+            startEmergencyServer();
+          }
         });
         
         mainServer.on('exit', (code, signal) => {
@@ -145,7 +174,9 @@ let serverStarted = false;
               serverStarted = true;
               startEmergencyServer();
             }
-          } else {
+          } else if (!serverStarted) {
+            // Handle clean exit but no success signal
+            console.log('Server exited cleanly but no success signal was detected');
             serverStarted = true;
           }
         });

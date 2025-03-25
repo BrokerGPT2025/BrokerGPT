@@ -169,6 +169,9 @@ const indexContent = '// STANDALONE EMERGENCY SERVER\n' +
 '  console.log(\'Environment variables:\');\n' +
 '  console.log(\'- NODE_ENV: \' + (process.env.NODE_ENV || \'not set\'));\n' +
 '  console.log(\'- PORT: \' + PORT);\n' +
+'  \n' +
+'  // Send success signal for start-production.js to detect\n' +
+'  console.log(\'SERVER_STARTED_SUCCESSFULLY\');\n' +
 '});';
 
 // Check if index.js exists
