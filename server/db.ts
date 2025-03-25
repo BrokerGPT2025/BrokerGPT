@@ -91,31 +91,22 @@ function extractHostInfo(connectionString: string): { host: string; port: number
 /**
  * Get a direct IP for Supabase connection
  * This helps bypass DNS resolution issues
+ * 
+ * Note: This is a fallback approach that should only be used if
+ * the DNS fix doesn't work.
  */
 function getSupabaseDirectIP(): string | null {
   // Known Supabase IP addresses that we can try
   const SUPABASE_IPS = [
     '104.18.38.10',    // From nslookup pnikbrakkfottoylxaxy.supabase.co
     '172.64.149.246',  // From nslookup pnikbrakkfottoylxaxy.supabase.co
-    '45.8.126.7',      // Another possible Supabase IP
-    '45.8.127.41'      // Another possible Supabase IP
   ];
   
-  // Check if we have a saved working IP
-  try {
-    const fs = require('fs');
-    if (fs.existsSync('./working-db-ip.txt')) {
-      const ip = fs.readFileSync('./working-db-ip.txt', 'utf8').trim();
-      console.log(`Found saved working IP: ${ip}`);
-      return ip;
-    }
-  } catch (err) {
-    console.error('Error reading saved IP file:', err);
-  }
-  
-  // Default to first IP if no saved one
-  console.log(`Using fallback Supabase IP: ${SUPABASE_IPS[0]}`);
-  return SUPABASE_IPS[0];
+  // Default to first IP
+  const ip = SUPABASE_IPS[0];
+  console.log(`[FALLBACK] Using Supabase IP as last resort: ${ip}`);
+  console.log('[FALLBACK] Note: DNS fix should have fixed this already!');
+  return ip;
 }
 
 /**

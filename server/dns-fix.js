@@ -5,6 +5,8 @@
  * on Render.com and other environments.
  */
 
+// No fs imports - we'll avoid file operations entirely
+
 /**
  * Fixes a Supabase database hostname
  * From: db.pnikbrakkfottoylxaxy.supabase.co
@@ -32,7 +34,7 @@ export function fixSupabaseHostname(url) {
         
         // Replace db.X.supabase.co with X.supabase.co
         const fixedHost = `${projectId}.supabase.co`;
-        console.log(`Fixing Supabase DB hostname: ${dbHost} → ${fixedHost}`);
+        console.log(`[DNS-FIX] Fixing Supabase DB hostname: ${dbHost} → ${fixedHost}`);
         return `${prefix}${fixedHost}${suffix}`;
       }
     } else if (url.includes('https')) {
@@ -48,13 +50,13 @@ export function fixSupabaseHostname(url) {
         
         // Always use the format without db. prefix
         if (hasDbPrefix) {
-          console.log(`Fixing Supabase API URL: removing db. prefix`);
+          console.log(`[DNS-FIX] Fixing Supabase API URL: removing db. prefix from ${projectId}.supabase.co`);
+          return `${prefix}${projectId}${suffix}`;
         }
-        return `${prefix}${projectId}${suffix}`;
       }
     }
   } catch (err) {
-    console.error('Error fixing Supabase hostname:', err);
+    console.error('[DNS-FIX] Error fixing Supabase hostname:', err);
   }
   
   // If nothing matched or there was an error, return the original
@@ -65,12 +67,21 @@ export function fixSupabaseHostname(url) {
  * Patches environment variables to fix Supabase connections
  */
 export function fixSupabaseConnection() {
+  console.log('[DNS-FIX] Starting Supabase URL fix...');
+  
   if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('supabase')) {
     const originalDbUrl = process.env.DATABASE_URL;
     const fixedDbUrl = fixSupabaseHostname(originalDbUrl);
     
     if (fixedDbUrl !== originalDbUrl) {
-      console.log('Fixed DATABASE_URL for Supabase connection');
+      console.log('[DNS-FIX] Fixed DATABASE_URL for Supabase connection');
+      // Replace masked URL for logging
+      const maskedOriginal = originalDbUrl.replace(/:[^:]*@/, ':***@');
+      const maskedFixed = fixedDbUrl.replace(/:[^:]*@/, ':***@');
+      console.log(`[DNS-FIX] Original: ${maskedOriginal}`);
+      console.log(`[DNS-FIX] Fixed: ${maskedFixed}`);
+      
+      // Actually update the environment variable
       process.env.DATABASE_URL = fixedDbUrl;
     }
   }
@@ -80,13 +91,18 @@ export function fixSupabaseConnection() {
     const fixedApiUrl = fixSupabaseHostname(originalApiUrl);
     
     if (fixedApiUrl !== originalApiUrl) {
-      console.log('Fixed SUPABASE_URL for Supabase connection');
+      console.log('[DNS-FIX] Fixed SUPABASE_URL for Supabase connection');
+      console.log(`[DNS-FIX] Original: ${originalApiUrl}`);
+      console.log(`[DNS-FIX] Fixed: ${fixedApiUrl}`);
+      
+      // Update the environment variable
       process.env.SUPABASE_URL = fixedApiUrl;
     }
   }
+  
+  console.log('[DNS-FIX] Supabase URL fix completed');
 }
 
 // Apply the fix immediately when this module is imported
-console.log('Applying Supabase DNS fix to environment variables...');
+console.log('[DNS-FIX] Applying Supabase DNS fix to environment variables...');
 fixSupabaseConnection();
-console.log('Supabase DNS fix applied. Connections should now work correctly.');
