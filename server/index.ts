@@ -1,6 +1,9 @@
 // Force IPv4 before any other imports to ensure all connections use IPv4
 import './ipv4-enforcer';
 
+// Apply Supabase DNS fix before any database connections are attempted
+import './dns-fix.js';
+
 import 'dotenv/config'; // Load environment variables from .env file
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
