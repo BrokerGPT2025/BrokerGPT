@@ -1,6 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import type { Server } from "http";
 import { storage } from "./storage";
 import { insertClientSchema, insertChatMessageSchema, clientProfileSchema, insertRecordTypeSchema, insertClientRecordSchema } from "@shared/schema";
 import * as supabase from './supabase';
@@ -8,7 +8,7 @@ import { ZodError } from "zod";
 import { pool, isDatabaseAvailable } from './db';
 
 // Import the IPv4 enforcer to ensure all network connections use IPv4
-import './ipv4-enforcer';
+import { createIPv4Server } from './ipv4-enforcer';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Add CORS middleware for cross-origin requests
@@ -463,6 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
+  // Use our IPv4-enforced server creator
+  const httpServer = await createIPv4Server(app);
   return httpServer;
 }

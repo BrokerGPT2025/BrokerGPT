@@ -8,7 +8,6 @@
 
 import net from 'net';
 import * as dns from 'dns';
-import * as http from 'http';
 
 /**
  * Force all DNS lookups to prefer IPv4
@@ -48,44 +47,46 @@ export function enforceIPv4() {
   }
   
   try {
-    // 3. Patch http.createServer to use IPv4 addresses by default
-    const originalCreateServer = http.createServer;
-    
-    // @ts-ignore - we're monkey patching
-    http.createServer = function(...args: any[]) {
-      const server = originalCreateServer.call(this, ...args);
-      
-      const originalListen = server.listen;
-      server.listen = function(port?: any, hostname?: any, ...listenArgs: any[]) {
-        // If no hostname is specified or hostname is '0.0.0.0', leave it as is
-        // Otherwise, we'll force IPv4
-        if (typeof hostname === 'string' && hostname !== '0.0.0.0' && hostname !== '127.0.0.1') {
-          console.log(`⚙️ Server binding to ${hostname}:${port}, checking for IPv4...`);
-          
-          // Try to resolve to make sure we're using an IPv4 address
-          dns.lookup(hostname, { family: 4 }, (err, address) => {
-            if (!err) {
-              console.log(`✅ Resolved ${hostname} to IPv4 address: ${address}`);
-            }
-          });
-        }
-        
-        // Always indicate we're forcing IPv4 for any listening server
-        console.log(`🌐 HTTP server will use IPv4 addressing`);
-        
-        return originalListen.call(this, port, hostname, ...listenArgs);
-      };
-      
-      return server;
-    };
-    
-    console.log('✅ http.createServer patched for IPv4 compatibility');
+    // 3. We can't patch http.createServer directly because imports are immutable
+    // Instead, we'll add an IPv4 server creator utility function
+    console.log('✅ Adding IPv4-enabled server creation utility');
   } catch (error) {
-    console.error('❌ Failed to patch http.createServer:', error);
+    console.error('❌ Failed to set up server utilities:', error);
   }
   
   console.log('🛡️ IPv4 Enforcer: All patches applied successfully');
   return true;
+}
+
+// Add a utility function to create a server that uses IPv4
+export function createIPv4Server(handler: any) {
+  // We can't modify http.createServer, but we can create our own IPv4-specific function
+  console.log('Creating server with IPv4 enforcement');
+  
+  // Dynamically import http to avoid the immutable import issue
+  return import('http').then(http => {
+    const server = http.createServer(handler);
+    
+    // Store the original listen method
+    const originalListen = server.listen;
+    
+    // Replace the listen method with our IPv4-enforcing version
+    server.listen = function(port?: any, hostname?: any, ...listenArgs: any[]) {
+      // If hostname is not specified, use 0.0.0.0 (IPv4 all interfaces)
+      if (!hostname) {
+        hostname = '0.0.0.0';
+        console.log(`Setting hostname to ${hostname} for IPv4 compatibility`);
+      }
+      
+      // Log information about the connection
+      console.log(`🌐 HTTP server binding to ${hostname}:${port} (IPv4)`);
+      
+      // Call the original listen with our potentially modified hostname
+      return originalListen.call(server, port, hostname, ...listenArgs);
+    };
+    
+    return server;
+  });
 }
 
 // Apply the enforcer immediately when this module is imported
