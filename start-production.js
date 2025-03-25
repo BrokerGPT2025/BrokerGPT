@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
+import { createServer } from 'net';
 
 // Try to load dotenv if available
 try {
@@ -46,8 +47,49 @@ if (!process.env.NODE_OPTIONS && process.env.NODE_ENV === 'production') {
 }
 
 // Define an immediate function to allow top-level await
+//  Function to check if a port is in use
+function isPortInUse(port) {
+  return new Promise((resolve) => {
+    const server = createServer()
+      .once('error', () => {
+        // Port is in use
+        resolve(true);
+      })
+      .once('listening', () => {
+        // Port is free, close the server
+        server.close();
+        resolve(false);
+      })
+      .listen(port, '0.0.0.0');
+  });
+}
+
+// Function to find an available port
+async function findAvailablePort(startPort) {
+  let port = startPort;
+  while (await isPortInUse(port)) {
+    console.log(`Port ${port} is in use, trying ${port + 1}...`);
+    port++;
+  }
+  return port;
+}
+
+// Global tracking of server state to prevent multiple startups
+let serverStarted = false;
+
 (async function main() {
   try {
+    // Find available port
+    const requestedPort = parseInt(process.env.PORT || '10000');
+    const availablePort = await findAvailablePort(requestedPort);
+    
+    if (requestedPort !== availablePort) {
+      console.log(`⚠️ Requested port ${requestedPort} is in use, using port ${availablePort} instead`);
+      process.env.PORT = availablePort.toString();
+    } else {
+      console.log(`✅ Port ${availablePort} is available`);
+    }
+    
     // Try to dynamically import createRequire for CommonJS compatibility
     let createRequire;
     try {
@@ -71,13 +113,15 @@ if (!process.env.NODE_OPTIONS && process.env.NODE_ENV === 'production') {
     console.log(`Checking for emergency-server.js: ${emergencyExists ? 'Found' : 'Not found'}`);
 
     // First attempt: Try to start the regular server if it exists
-    if (distExists) {
+    if (distExists && !serverStarted) {
       console.log('Attempting to start the regular server from dist/index.js...');
       
       // Set a timeout to prevent hanging indefinitely
       const timeout = setTimeout(() => {
-        console.log('⚠️ Regular server startup timed out. Switching to emergency server...');
-        startEmergencyServer();
+        if (!serverStarted) {
+          console.log('⚠️ Regular server startup timed out. Switching to emergency server...');
+          startEmergencyServer();
+        }
       }, 10000); // 10 second timeout
       
       try {
@@ -97,30 +141,52 @@ if (!process.env.NODE_OPTIONS && process.env.NODE_ENV === 'production') {
           
           if (code !== 0) {
             console.error(`Regular server exited with code ${code} and signal ${signal}`);
-            startEmergencyServer();
+            if (!serverStarted) {
+              serverStarted = true;
+              startEmergencyServer();
+            }
+          } else {
+            serverStarted = true;
           }
         });
       } catch (err) {
         console.error(`Failed to spawn regular server: ${err.message}`);
         clearTimeout(timeout);
-        startEmergencyServer();
+        if (!serverStarted) {
+          serverStarted = true;
+          startEmergencyServer();
+        }
       }
-    } else {
+    } else if (!serverStarted) {
       console.log('Regular server not found. Starting emergency server...');
+      serverStarted = true;
       startEmergencyServer();
     }
 
     // Function to start the emergency server
     function startEmergencyServer() {
+      if (serverStarted) {
+        console.log('Server already started, skipping emergency server');
+        return;
+      }
+      
       console.log('Starting emergency server...');
+      serverStarted = true;
       
       if (emergencyExists) {
         console.log('Using standalone emergency server from emergency-server.js');
         
         try {
+          // Pass the available port to ensure it matches what we checked
+          const PORT = process.env.PORT || '10000';
+          console.log(`Passing PORT=${PORT} to emergency-server.js`);
           const emergencyServer = spawn('node', ['emergency-server.js'], {
             stdio: 'inherit',
-            env: { ...process.env, NODE_ENV: 'production' }
+            env: { 
+              ...process.env, 
+              NODE_ENV: 'production',
+              PORT
+            }
           });
           
           emergencyServer.on('error', (err) => {
@@ -146,7 +212,20 @@ if (!process.env.NODE_OPTIONS && process.env.NODE_ENV === 'production') {
 
     // Last resort: Create an inline server and start it
     async function createAndStartInlineServer() {
+      if (serverStarted) {
+        console.log('Server already started, skipping inline server');
+        return;
+      }
+      
       console.log('Creating inline emergency server as last resort...');
+      
+      // Find another available port to avoid conflicts
+      const PORT = parseInt(process.env.PORT || '10000');
+      const newPort = await findAvailablePort(PORT);
+      console.log(`Using port ${newPort} for inline server`);
+      process.env.PORT = newPort.toString();
+      
+      serverStarted = true;
       
       // Try to import express
       try {
@@ -169,20 +248,19 @@ if (!process.env.NODE_OPTIONS && process.env.NODE_ENV === 'production') {
           }
         }
         
+        // Add health check endpoint
+        app.get('/api/health', (req, res) => {
+          res.json({
+            status: 'ok',
+            mode: 'inline-emergency',
+            timestamp: new Date().toISOString(),
+            port: newPort
+          });
+        });
+        
         // Create minimal HTML
         app.get('*', (req, res) => {
-          const isApiRequest = req.path.startsWith('/api');
-          
-          if (isApiRequest) {
-            // Handle API requests
-            if (req.path === '/api/health') {
-              return res.json({
-                status: 'ok',
-                mode: 'inline-emergency',
-                timestamp: new Date().toISOString()
-              });
-            }
-            
+          if (req.path.startsWith('/api') && req.path !== '/api/health') {
             // Generic API response
             return res.json({
               error: 'API running in emergency mode',
@@ -208,6 +286,7 @@ if (!process.env.NODE_OPTIONS && process.env.NODE_ENV === 'production') {
                 <h2>Service Status</h2>
                 <p>The application is running in inline emergency mode.</p>
                 <p>API endpoints are available but full functionality is limited.</p>
+                <p>Running on port ${newPort}</p>
               </div>
               <div class="card">
                 <h2>API Status</h2>
@@ -231,49 +310,73 @@ if (!process.env.NODE_OPTIONS && process.env.NODE_ENV === 'production') {
           `);
         });
         
-        // Start server
-        const PORT = process.env.PORT || 10000;
-        app.listen(PORT, '0.0.0.0', () => {
-          console.log(`🆘 INLINE EMERGENCY SERVER RUNNING ON PORT ${PORT} 🆘`);
+        // Start server on the available port
+        const server = app.listen(newPort, '0.0.0.0', () => {
+          console.log(`🆘 INLINE EMERGENCY SERVER RUNNING ON PORT ${newPort} 🆘`);
+        });
+        
+        // Handle errors to prevent crashes
+        server.on('error', (err) => {
+          console.error('Express server error:', err);
+          if (err.code === 'EADDRINUSE') {
+            console.error(`Port ${newPort} is already in use, trying HTTP fallback`);
+            startHttpFallback();
+          }
         });
       } catch (expressError) {
         console.error('Failed to import Express:', expressError);
-        console.log('Falling back to pure Node.js HTTP server');
-        
-        try {
-          // Use Node's built-in HTTP module as final fallback
-          const http = await import('http');
-          
-          const server = http.createServer((req, res) => {
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.end(`
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <title>BrokerGPT - Critical Recovery</title>
-                <style>
-                  body { font-family: sans-serif; text-align: center; padding: 50px; }
-                  h1 { color: #0087FF; }
-                </style>
-              </head>
-              <body>
-                <h1>BrokerGPT</h1>
-                <p>Critical recovery mode active. All normal services are unavailable.</p>
-                <p>This is the most minimal emergency server.</p>
-              </body>
-              </html>
-            `);
-          });
-          
-          const PORT = process.env.PORT || 10000;
-          server.listen(PORT, '0.0.0.0', () => {
-            console.log(`⚠️ CRITICAL HTTP FALLBACK SERVER RUNNING ON PORT ${PORT} ⚠️`);
-          });
-        } catch (httpError) {
-          console.error('Fatal: Could not create any type of server:', httpError);
-          process.exit(1);
-        }
+        startHttpFallback();
       }
+    }
+    
+    // Final fallback using only Node.js HTTP module
+    async function startHttpFallback() {
+      console.log('Falling back to pure Node.js HTTP server');
+      
+      try {
+        // Find yet another port as last resort
+        const PORT = parseInt(process.env.PORT || '10000');
+        const lastPort = await findAvailablePort(PORT + 1);
+        console.log(`Using port ${lastPort} for HTTP fallback server`);
+        
+        // Use Node's built-in HTTP module as final fallback
+        const http = await import('http');
+        
+        const server = http.createServer((req, res) => {
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>BrokerGPT - Critical Recovery</title>
+              <style>
+                body { font-family: sans-serif; text-align: center; padding: 50px; }
+                h1 { color: #0087FF; }
+              </style>
+            </head>
+            <body>
+              <h1>BrokerGPT</h1>
+              <p>Critical recovery mode active on port ${lastPort}.</p>
+              <p>This is the most minimal emergency server.</p>
+            </body>
+            </html>
+          `);
+        });
+        
+        server.listen(lastPort, '0.0.0.0', () => {
+          console.log(`⚠️ CRITICAL HTTP FALLBACK SERVER RUNNING ON PORT ${lastPort} ⚠️`);
+        });
+        
+        server.on('error', (err) => {
+          console.error('Fatal HTTP server error:', err);
+          console.error('All server start attempts have failed.');
+          process.exit(1);
+        });
+      } catch (httpError) {
+        console.error('Fatal: Could not create any type of server:', httpError);
+        process.exit(1);
+      }
+    }
     }
   } catch (startupError) {
     console.error('Catastrophic startup error:', startupError);

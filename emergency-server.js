@@ -6,6 +6,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createServer } from 'net';
 
 // Get dirname in ESM context
 const __filename = fileURLToPath(import.meta.url);
@@ -14,6 +15,37 @@ const __dirname = path.dirname(__filename);
 console.log('🚨 STANDALONE EMERGENCY SERVER STARTING 🚨');
 console.log(`Node version: ${process.version}`);
 console.log(`Current directory: ${process.cwd()}`);
+
+// Track server start time for diagnostics
+const SERVER_START_TIME = new Date().toISOString();
+console.log(`Start time: ${SERVER_START_TIME}`);
+
+// Function to check if a port is in use
+function isPortInUse(port) {
+  return new Promise((resolve) => {
+    const server = createServer()
+      .once('error', () => {
+        // Port is in use
+        resolve(true);
+      })
+      .once('listening', () => {
+        // Port is free, close the server
+        server.close();
+        resolve(false);
+      })
+      .listen(port, '0.0.0.0');
+  });
+}
+
+// Function to find an available port
+async function findAvailablePort(startPort) {
+  let port = startPort;
+  while (await isPortInUse(port)) {
+    console.log(`Port ${port} is in use, trying ${port + 1}...`);
+    port++;
+  }
+  return port;
+}
 
 // Express app setup
 const app = express();
@@ -60,6 +92,7 @@ if (!staticPathFound) {
     .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
     button { background: #0087FF; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
     pre { background: #f5f5f9; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    .badge { display: inline-block; background: #0087FF; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-left: 8px; }
   </style>
 </head>
 <body>
@@ -68,6 +101,9 @@ if (!staticPathFound) {
   <div class="card">
     <h2>Server Status</h2>
     <p>The application is running through a standalone emergency server. The normal build process encountered issues.</p>
+    <p>Current Port: <span id="current-port">Checking...</span></p>
+    <p>Server Start Time: <span id="start-time">Checking...</span></p>
+    <p>Uptime: <span id="uptime">Checking...</span></p>
   </div>
   
   <div class="card">
@@ -96,6 +132,26 @@ if (!staticPathFound) {
           document.getElementById('api-status').innerHTML = 
             '<p style="color: green">✓ API is working</p>' +
             '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+          
+          // Update port display
+          document.getElementById('current-port').innerHTML = 
+            data.port + '<span class="badge">Active</span>';
+          
+          // Update start time
+          if (data.serverStartTime) {
+            document.getElementById('start-time').textContent = 
+              new Date(data.serverStartTime).toLocaleString();
+          }
+          
+          // Update uptime
+          if (data.uptime) {
+            const uptime = data.uptime;
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            const seconds = Math.floor(uptime % 60);
+            document.getElementById('uptime').textContent = 
+              \`\${hours}h \${minutes}m \${seconds}s\`;
+          }
           
           // Also update static paths display
           if (data.staticPaths) {
@@ -127,9 +183,15 @@ if (!staticPathFound) {
         });
     }
     
-    // Run API checks on page load
-    checkApi();
-    getEnvironment();
+    // Auto-refresh stats
+    function refreshStats() {
+      checkApi();
+      getEnvironment();
+      setTimeout(refreshStats, 30000); // Refresh every 30 seconds
+    }
+    
+    // Run checks on page load and start auto-refresh
+    refreshStats();
   </script>
 </body>
 </html>`;
@@ -146,10 +208,13 @@ app.get('/api/health', (req, res) => {
     mode: 'standalone-emergency',
     timestamp: new Date().toISOString(),
     nodeVersion: process.version,
+    port: process.env.PORT || 'unknown',
     staticPaths: staticPaths.map(p => ({
       path: p,
       exists: fs.existsSync(p)
-    }))
+    })),
+    serverStartTime: SERVER_START_TIME,
+    uptime: process.uptime()
   });
 });
 
@@ -161,8 +226,12 @@ app.get('/api/environment', (req, res) => {
     platform: process.platform,
     arch: process.arch,
     cwd: process.cwd(),
+    port: process.env.PORT || 'unknown',
+    requestedPort: req.query.requestedPort || 'unknown',
     memoryUsage: process.memoryUsage(),
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    serverType: 'emergency-server',
+    startTime: SERVER_START_TIME
   });
 });
 
@@ -211,8 +280,53 @@ app.get('*', (req, res) => {
   `);
 });
 
-// Start the server
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚨 STANDALONE EMERGENCY SERVER RUNNING ON PORT ${PORT} 🚨`);
-});
+// Start the server with port conflict handling
+(async () => {
+  try {
+    const requestedPort = parseInt(process.env.PORT || '10000');
+    const availablePort = await findAvailablePort(requestedPort);
+    
+    if (requestedPort !== availablePort) {
+      console.log(`⚠️ Requested port ${requestedPort} is in use, using port ${availablePort} instead`);
+      process.env.PORT = availablePort.toString();
+    } else {
+      console.log(`✅ Port ${availablePort} is available`);
+    }
+    
+    // Start server on the available port
+    const server = app.listen(availablePort, '0.0.0.0', () => {
+      console.log(`🚨 STANDALONE EMERGENCY SERVER RUNNING ON PORT ${availablePort} 🚨`);
+    });
+    
+    // Handle errors to prevent crashes
+    server.on('error', (err) => {
+      console.error('Emergency server error:', err);
+      if (err.code === 'EADDRINUSE') {
+        console.error(`Port ${availablePort} conflict detected after server start - this is unexpected`);
+        process.exit(1); // Exit with error code so the process can be restarted
+      }
+    });
+    
+    // Set up graceful shutdown
+    const shutdownGracefully = () => {
+      console.log('Received shutdown signal, closing server gracefully...');
+      server.close(() => {
+        console.log('Server closed successfully');
+        process.exit(0);
+      });
+      
+      // Force close after timeout if graceful shutdown fails
+      setTimeout(() => {
+        console.error('Forcing server shutdown after timeout');
+        process.exit(1);
+      }, 5000);
+    };
+    
+    // Handle signals
+    process.on('SIGTERM', shutdownGracefully);
+    process.on('SIGINT', shutdownGracefully);
+  } catch (err) {
+    console.error('Fatal error starting emergency server:', err);
+    process.exit(1);
+  }
+})();
