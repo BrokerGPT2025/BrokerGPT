@@ -93,7 +93,10 @@ async function ensureViteDependencies() {
     await runCommand('npm', ['install', '-g', 'vite@latest', 'esbuild@latest']);
     
     // Add global binaries to PATH
-    process.env.PATH = `${process.env.PATH}:${execSync('npm bin -g').toString().trim()}`;
+    // Use local node_modules/.bin instead of global bin path
+    const localBinPath = path.join(process.cwd(), 'node_modules', '.bin');
+    process.env.PATH = `${process.env.PATH}:${localBinPath}`;
+    console.log(`Added local node_modules/.bin to PATH: ${localBinPath}`);
     console.log(`Updated PATH: ${process.env.PATH}`);
   }
 }

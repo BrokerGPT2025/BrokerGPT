@@ -33,9 +33,12 @@ services:
       echo "Running Vite-free installer..."
       node install-vite.cjs || echo "Vite installer skipped, continuing without it"
       
-      # Install core build tools explicitly - multiple ways to ensure they're available
-      npm install vite@latest esbuild@latest tsx@latest @vitejs/plugin-react@latest
-      npm install -g vite@latest esbuild@latest
+      # Install core build tools locally - avoid global installs that cause permissions issues
+      npm install vite@latest esbuild@latest tsx@latest @vitejs/plugin-react@latest react react-dom --no-optional
+      
+      # Set PATH to include node_modules/.bin to avoid npm bin -g errors
+      export PATH="$PWD/node_modules/.bin:$PATH"
+      echo "PATH now includes: $PATH"
       
       # Try to use a dedicated CommonJS-mode build package as a temporary build environment
       if [ -f "build-package.json" ]; then
