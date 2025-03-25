@@ -7,6 +7,46 @@ import { carriers, clients, policies, chatMessages } from '@shared/schema';
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_KEY || '';
 
+// Handle possible URL rewrites for direct IP connection
+function getDirectIPSupabaseUrl(url: string): string {
+  if (!url || !process.env.NODE_ENV || process.env.NODE_ENV !== 'production') {
+    return url;
+  }
+  
+  try {
+    // Extract the project reference from the URL
+    const match = url.match(/https:\/\/([^\.]+)\.supabase\.co/);
+    if (match && match[1]) {
+      const projectRef = match[1];
+      console.log(`Extracted Supabase project ref: ${projectRef}`);
+      
+      // Try to get a direct IP for Supabase
+      try {
+        const fs = require('fs');
+        if (fs.existsSync('./working-db-ip.txt')) {
+          const ip = fs.readFileSync('./working-db-ip.txt', 'utf8').trim();
+          console.log(`Using direct IP for Supabase: ${ip}`);
+          return `https://${ip}/`;
+        }
+      } catch (err) {
+        console.error('Error reading IP file:', err);
+      }
+      
+      // Default to a known Supabase IP
+      const directIP = '104.18.38.10'; // Known IP from nslookup
+      console.log(`Using default IP for Supabase: ${directIP}`);
+      return `https://${directIP}/`;
+    }
+  } catch (err) {
+    console.error('Error rewriting Supabase URL:', err);
+  }
+  
+  return url;
+}
+
+// Get direct IP URL if in production
+const directSupabaseUrl = getDirectIPSupabaseUrl(supabaseUrl);
+
 let supabase: any = null;
 let db: any = null;
 
@@ -44,8 +84,12 @@ async function connectToSupabase(attempt = 1): Promise<boolean> {
   try {
     console.log(`Supabase connection attempt ${attempt}/${MAX_CONNECTION_ATTEMPTS}...`);
     
+    // Use direct IP URL in production, otherwise use standard URL
+    const urlToUse = process.env.NODE_ENV === 'production' ? directSupabaseUrl : supabaseUrl;
+    console.log(`Using Supabase URL: ${urlToUse.replace(/pnik.*\.co/, '<redacted>')}`);
+    
     // Create Supabase client
-    supabase = supabaseClient(supabaseUrl, supabaseKey, {
+    supabase = supabaseClient(urlToUse, supabaseKey, {
       auth: {
         persistSession: false,
         autoRefreshToken: false

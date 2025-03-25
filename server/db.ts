@@ -67,19 +67,55 @@ patchPgForIPv4();
 /**
  * Extract hostname and port from PostgreSQL connection string
  */
-function extractHostInfo(connectionString: string): { host: string; port: number } | null {
+function extractHostInfo(connectionString: string): { host: string; port: number; user: string; password: string; database: string } | null {
   try {
-    const match = connectionString.match(/postgres(?:ql)?:\/\/.*:.*@([^:]+):(\d+)\/.*$/);
+    // Format: postgres://username:password@hostname:port/database
+    const regex = /postgres(?:ql)?:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/;
+    const match = connectionString.match(regex);
+    
     if (match) {
       return {
-        host: match[1],
-        port: parseInt(match[2], 10)
+        user: match[1],
+        password: match[2],
+        host: match[3],
+        port: parseInt(match[4], 10),
+        database: match[5].split('?')[0] // Remove query parameters
       };
     }
   } catch (e) {
     console.error('Error parsing connection string:', e);
   }
   return null;
+}
+
+/**
+ * Get a direct IP for Supabase connection
+ * This helps bypass DNS resolution issues
+ */
+function getSupabaseDirectIP(): string | null {
+  // Known Supabase IP addresses that we can try
+  const SUPABASE_IPS = [
+    '104.18.38.10',    // From nslookup pnikbrakkfottoylxaxy.supabase.co
+    '172.64.149.246',  // From nslookup pnikbrakkfottoylxaxy.supabase.co
+    '45.8.126.7',      // Another possible Supabase IP
+    '45.8.127.41'      // Another possible Supabase IP
+  ];
+  
+  // Check if we have a saved working IP
+  try {
+    const fs = require('fs');
+    if (fs.existsSync('./working-db-ip.txt')) {
+      const ip = fs.readFileSync('./working-db-ip.txt', 'utf8').trim();
+      console.log(`Found saved working IP: ${ip}`);
+      return ip;
+    }
+  } catch (err) {
+    console.error('Error reading saved IP file:', err);
+  }
+  
+  // Default to first IP if no saved one
+  console.log(`Using fallback Supabase IP: ${SUPABASE_IPS[0]}`);
+  return SUPABASE_IPS[0];
 }
 
 /**
@@ -202,25 +238,62 @@ async function attemptDatabaseConnection(attempt = 1): Promise<boolean> {
     } else {
       console.log('Using standard PostgreSQL connection with pg');
       
-      // Extract host and port info
+      // Extract connection details from URL
       const hostInfo = extractHostInfo(process.env.DATABASE_URL);
-      if (hostInfo) {
-        console.log(`Extracted host info: ${hostInfo.host}:${hostInfo.port}`);
+      if (!hostInfo) {
+        throw new Error('Failed to parse database connection string');
+      }
+      
+      console.log(`Extracted host info: ${hostInfo.host}:${hostInfo.port}`);
+      
+      // Check if this is a Supabase connection
+      const isSupabase = hostInfo.host.includes('supabase');
+      
+      // Try to use a direct IP if this is Supabase
+      let directIP = null;
+      if (isSupabase) {
+        console.log('Detected Supabase database, trying direct IP connection');
+        directIP = getSupabaseDirectIP();
       }
       
       // Build connection options with optimizations for Render.com
-      const connectionOptions: pg.PoolConfig = {
-        connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-        // Force IPv4 to avoid ENETUNREACH on IPv6
-        family: 4,
-        // Increase timeouts
-        connectionTimeoutMillis: 30000,
-        idle_in_transaction_session_timeout: 30000,
-        // Set a small pool to avoid connection issues
-        max: 5,
-        min: 0
-      };
+      let connectionOptions: pg.PoolConfig;
+      
+      if (directIP) {
+        // Use direct IP instead of hostname
+        console.log(`Creating connection with direct IP: ${directIP} instead of hostname`);
+        connectionOptions = {
+          host: directIP,
+          port: hostInfo.port,
+          user: hostInfo.user,
+          password: hostInfo.password,
+          database: hostInfo.database,
+          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+          // Force IPv4
+          family: 4,
+          // Increase timeouts
+          connectionTimeoutMillis: 30000,
+          idle_in_transaction_session_timeout: 30000,
+          // Set a small pool to avoid connection issues
+          max: 5,
+          min: 0
+        };
+      } else {
+        // Use standard connection string
+        console.log('Using standard connection string');
+        connectionOptions = {
+          connectionString: process.env.DATABASE_URL,
+          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+          // Force IPv4 to avoid ENETUNREACH on IPv6
+          family: 4,
+          // Increase timeouts
+          connectionTimeoutMillis: 30000,
+          idle_in_transaction_session_timeout: 30000,
+          // Set a small pool to avoid connection issues
+          max: 5,
+          min: 0
+        };
+      }
       
       // Log connection options (without credentials)
       console.log(`Connection options: max=${connectionOptions.max}, family=${connectionOptions.family}, timeout=${connectionOptions.connectionTimeoutMillis}ms`);
