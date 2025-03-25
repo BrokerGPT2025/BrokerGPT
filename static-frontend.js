@@ -1,29 +1,14 @@
 // Static frontend generator for production deployment
 // Creates a minimal but functional frontend when Vite build fails
-// This version supports both ESM and CommonJS
+// Explicitly using ESM syntax for compatibility with package.json type:module
 
-let fs, path, __dirname;
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-// Check if we're in ESM or CommonJS mode
-const isESM = typeof import.meta !== 'undefined';
-
-if (isESM) {
-  // ESM imports
-  const module = await import('fs');
-  fs = module.default;
-  
-  const pathModule = await import('path');
-  path = pathModule.default;
-  
-  const { fileURLToPath } = await import('url');
-  const __filename = fileURLToPath(import.meta.url);
-  __dirname = pathModule.default.dirname(__filename);
-} else {
-  // CommonJS imports
-  fs = require('fs');
-  path = require('path');
-  // __dirname is already available in CommonJS
-}
+// Get directory paths in ESM context
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 console.log('Starting static frontend generation...');
 console.log(`Node version: ${process.version}`);
