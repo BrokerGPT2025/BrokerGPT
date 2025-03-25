@@ -7,7 +7,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// __dirname is already available in CommonJS
+// __dirname and __filename are already available in CommonJS
+// No need for fileURLToPath
 const rootDir = process.cwd();
 
 // Paths
@@ -170,9 +171,8 @@ const indexContent = '// STANDALONE EMERGENCY SERVER\n' +
 '  console.log(\'- PORT: \' + PORT);\n' +
 '});';
 
-// Get directory name in ESM context
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// In CommonJS, __filename and __dirname are already available
+// No need to redefine them with fileURLToPath
 
 // Initialize Express
 const app = express();
