@@ -39,54 +39,120 @@ app.use((req, res, next) => {
   next();
 });
 
+// Wrap in a try/catch to prevent server crashes
 (async () => {
-  // Check database connection
-  if (isDatabaseAvailable()) {
-    console.log('PostgreSQL database connection initialized successfully');
-  } else {
-    console.warn('PostgreSQL database not available. Using in-memory storage fallback.');
-  }
-  
-  // Check for Supabase connection
   try {
-    console.log('Connecting to Supabase with provided credentials');
-    const { data, error } = await supabase.from('healthcheck').select('*').limit(1);
-    if (error) throw error;
-    console.log('Successfully connected to Supabase');
+    // Check database connection
+    if (isDatabaseAvailable()) {
+      console.log('PostgreSQL database connection initialized successfully');
+    } else {
+      console.warn('PostgreSQL database not available. Using in-memory storage fallback.');
+    }
+    
+    // Check for Supabase connection
+    try {
+      console.log('Connecting to Supabase with provided credentials');
+      const { data, error } = await supabase.from('healthcheck').select('*').limit(1);
+      if (error) throw error;
+      console.log('Successfully connected to Supabase');
+    } catch (error) {
+      console.warn('Could not connect to Supabase. Using in-memory storage fallback.', error);
+    }
+    
+    // Check for OpenAI API key
+    if (!process.env.OPENAI_API_KEY) {
+      console.warn('OPENAI_API_KEY is not set. AI features will not work properly.');
+    } else {
+      console.log('OPENAI_API_KEY is set. AI features are enabled.');
+    }
+    
+    const server = await registerRoutes(app);
+
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+
+      res.status(status).json({ message });
+      console.error("Server error:", err);
+      // Don't throw the error - just log it
+    });
+
+    // Set up static file or dev server based on environment
+    try {
+      if (app.get("env") === "development") {
+        await setupVite(app, server);
+      } else {
+        serveStatic(app);
+      }
+    } catch (setupError) {
+      console.error("Error setting up file serving:", setupError);
+      // Fall back to minimal static serving
+      try {
+        const path = await import('path');
+        const fs = await import('fs');
+        const __dirname = process.cwd();
+        
+        // Try multiple static file paths
+        const possiblePaths = [
+          path.join(__dirname, "client/dist"),
+          path.join(__dirname, "dist/public")
+        ];
+        
+        let foundStatic = false;
+        for (const staticPath of possiblePaths) {
+          if (fs.existsSync(staticPath)) {
+            console.log(`Serving static files from: ${staticPath}`);
+            app.use(express.static(staticPath));
+            foundStatic = true;
+          }
+        }
+        
+        if (!foundStatic) {
+          console.warn("No static files found, API-only mode");
+        }
+      } catch (fallbackError) {
+        console.error("Complete failure in static file serving:", fallbackError);
+      }
+    }
+
+    // Use the port from environment variable or fallback to 6543
+    const port = process.env.PORT ? parseInt(process.env.PORT) : 6543;
+    server.listen(port, '0.0.0.0', () => {
+      log(`serving on port ${port}`);
+    });
   } catch (error) {
-    console.warn('Could not connect to Supabase. Using in-memory storage fallback.', error);
+    console.error("Critical server error:", error);
+    console.log("Starting emergency fallback server...");
+    
+    // Create emergency Express server
+    try {
+      const PORT = process.env.PORT ? parseInt(process.env.PORT) : 10000;
+      app.get('*', (_req, res) => {
+        res.send(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>BrokerGPT - Error Recovery</title>
+            <style>
+              body { font-family: sans-serif; text-align: center; padding: 50px; }
+              h1 { color: #0087FF; }
+            </style>
+          </head>
+          <body>
+            <h1>BrokerGPT</h1>
+            <p>The server encountered a critical error and is running in recovery mode.</p>
+            <p>API endpoints are available but the full application is not loaded.</p>
+          </body>
+          </html>
+        `);
+      });
+      
+      app.listen(PORT, '0.0.0.0', () => {
+        console.log(`[RECOVERY SERVER] Running on port ${PORT}`);
+      });
+    } catch (emergencyError) {
+      console.error("Fatal error - could not start any server:", emergencyError);
+      process.exit(1);
+    }
   }
-  
-  // Check for OpenAI API key
-  if (!process.env.OPENAI_API_KEY) {
-    console.warn('OPENAI_API_KEY is not set. AI features will not work properly.');
-  } else {
-    console.log('OPENAI_API_KEY is set. AI features are enabled.');
-  }
-  
-  const server = await registerRoutes(app);
-
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-
-  // Use the port from environment variable or fallback to 6543
-  // this serves both the API and the client.
-  const port = process.env.PORT ? parseInt(process.env.PORT) : 6543;
-  server.listen(port, () => {
-    log(`serving on port ${port}`);
-  });
 })();
