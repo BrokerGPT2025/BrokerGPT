@@ -88,9 +88,9 @@ async function ensureViteDependencies() {
   } catch (error) {
     console.log('Vite not found or not accessible, installing dependencies...');
     
-    // Try to install Vite in multiple ways to ensure it's available
-    await runCommand('npm', ['install', '--no-save', 'vite@latest', '@vitejs/plugin-react@latest', 'esbuild@latest']);
-    await runCommand('npm', ['install', '-g', 'vite@latest', 'esbuild@latest']);
+    // Install Vite locally only - avoid global installations that cause permission issues
+    process.env.ROLLUP_SKIP_NODEJS_NATIVE = '1'; // Skip Rollup native modules
+    await runCommand('npm', ['install', '--no-save', '--no-optional', '--ignore-scripts', 'vite@latest', '@vitejs/plugin-react@latest', 'esbuild@latest']);
     
     // Add global binaries to PATH
     // Use local node_modules/.bin instead of global bin path

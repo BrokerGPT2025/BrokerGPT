@@ -90,8 +90,9 @@ async function setupVite() {
   }
   
   if (!viteExists) {
-    console.log("❌ Vite not found in expected locations. Installing globally...");
-    exec('npm install -g vite');
+    console.log("❌ Vite not found in expected locations. Installing locally...");
+    // Do NOT use global install which causes permission issues on Render
+    exec('npm install vite@latest --no-save --no-optional --ignore-scripts');
   }
 }
 

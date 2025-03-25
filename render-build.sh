@@ -105,12 +105,12 @@ else
     else
       echo "⚠️ All build scripts had issues, trying direct approach..."
       
-      # Try directly installing Vite in various ways
-      echo "Ensuring Vite is available through multiple methods..."
-      npm install vite@latest --no-save --force
-      npm install -g vite@latest
-      npm i -g @vitejs/plugin-react esbuild
-      export PATH="$PATH:$(npm bin -g)"
+      # Try directly installing Vite locally only (avoid global installs)
+      echo "Ensuring Vite is available locally..."
+      ROLLUP_SKIP_NODEJS_NATIVE=1 npm install vite@latest @vitejs/plugin-react@latest esbuild@latest --no-save --no-optional --ignore-scripts
+      # Add local bin to path
+      export PATH="$PWD/node_modules/.bin:$PATH"
+      echo "PATH: $PATH"
       
       # Try our special Vite runner first
       echo "Attempting build with special vite-run.cjs script..."

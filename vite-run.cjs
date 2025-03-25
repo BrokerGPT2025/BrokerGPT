@@ -77,28 +77,8 @@ function findViteBinary() {
       console.log('Error finding npm bin path:', error.message);
     }
 
-    // Try global installation
-    try {
-      const globalVitePath = execSync('which vite || echo ""', { encoding: 'utf8' }).trim();
-      if (globalVitePath) {
-        console.log(`Found global Vite at ${globalVitePath}`);
-        return globalVitePath;
-      }
-    } catch (error) {
-      console.log('Error finding global Vite path:', error.message);
-    }
-
-    // Try within global npm folder
-    try {
-      const globalNpmPath = execSync('npm root -g', { encoding: 'utf8' }).trim();
-      const globalVitePath = path.join(globalNpmPath, '.bin', 'vite');
-      if (fs.existsSync(globalVitePath)) {
-        console.log(`Found Vite in global npm at ${globalVitePath}`);
-        return globalVitePath;
-      }
-    } catch (error) {
-      console.log('Error finding global npm path:', error.message);
-    }
+    // Skip global installation checks - they cause permission issues on Render
+    console.log('Skipping global installation checks as they can cause permission issues');
 
     // Default to 'vite' and hope it's in PATH
     console.log('No specific Vite path found, using "vite" command from PATH');
