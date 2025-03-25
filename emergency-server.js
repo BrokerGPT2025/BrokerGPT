@@ -111,8 +111,42 @@ let staticPathFound = false;
 for (const staticPath of staticPaths) {
   if (fs.existsSync(staticPath)) {
     console.log(`Serving static files from: ${staticPath}`);
-    app.use(express.static(staticPath));
+    
+    // Configure static file serving with proper options
+    app.use(express.static(staticPath, {
+      index: 'index.html',   // Explicitly set index file
+      etag: true,            // Enable ETags for caching
+      lastModified: true,    // Send Last-Modified headers
+      maxAge: '1h',          // Cache for 1 hour
+      fallthrough: true      // Continue to next middleware if file not found
+    }));
+    
     staticPathFound = true;
+    
+    // Log directory contents for debugging
+    try {
+      console.log(`Files in ${staticPath}:`);
+      const files = fs.readdirSync(staticPath);
+      files.forEach(file => console.log(`  - ${file}`));
+      
+      // Check for index.html
+      const indexPath = path.join(staticPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        console.log(`Found index.html at ${indexPath}`);
+        
+        // Read first few lines to verify content
+        try {
+          const indexContent = fs.readFileSync(indexPath, 'utf8').slice(0, 200);
+          console.log(`Index.html content preview: ${indexContent.replace(/\n/g, ' ').trim()}`);
+        } catch (readErr) {
+          console.error(`Error reading index.html: ${readErr.message}`);
+        }
+      } else {
+        console.log(`WARNING: No index.html found in ${staticPath}`);
+      }
+    } catch (err) {
+      console.error(`Error listing directory: ${err.message}`);
+    }
   }
 }
 
@@ -282,6 +316,75 @@ app.get('/api/environment', (req, res) => {
   });
 });
 
+// Add an endpoint to check static paths in detail
+app.get('/api/staticPaths', (req, res) => {
+  const results = [];
+  
+  // Check each possible static path
+  for (const staticPath of staticPaths) {
+    const result = {
+      path: staticPath,
+      exists: fs.existsSync(staticPath),
+      files: []
+    };
+    
+    if (result.exists) {
+      try {
+        // List files in the directory
+        const files = fs.readdirSync(staticPath);
+        
+        // Check for index.html specifically
+        const hasIndex = files.includes('index.html');
+        const indexPath = path.join(staticPath, 'index.html');
+        let indexContent = null;
+        
+        if (hasIndex) {
+          try {
+            // Get a preview of index.html content (first 200 chars)
+            indexContent = fs.readFileSync(indexPath, 'utf8').slice(0, 200);
+          } catch (err) {
+            indexContent = `Error reading index.html: ${err.message}`;
+          }
+        }
+        
+        // Add directory info
+        result.fileCount = files.length;
+        result.hasIndexHtml = hasIndex;
+        result.indexContent = indexContent;
+        
+        // Add individual files (up to 20)
+        files.slice(0, 20).forEach(file => {
+          const filePath = path.join(staticPath, file);
+          try {
+            const stats = fs.statSync(filePath);
+            result.files.push({
+              name: file,
+              isDirectory: stats.isDirectory(),
+              size: stats.size,
+              modified: stats.mtime
+            });
+          } catch (err) {
+            result.files.push({
+              name: file,
+              error: err.message
+            });
+          }
+        });
+        
+        if (files.length > 20) {
+          result.note = `Showing 20 of ${files.length} files`;
+        }
+      } catch (err) {
+        result.error = err.message;
+      }
+    }
+    
+    results.push(result);
+  }
+  
+  res.json(results);
+});
+
 // Sample API endpoints
 app.get('/api/carriers', (req, res) => {
   res.json([
@@ -297,17 +400,42 @@ app.get('/api/clients', (req, res) => {
   ]);
 });
 
-// Fallback for SPA routes
+// Fallback for SPA routes (React router)
 app.get('*', (req, res) => {
+  console.log(`Handling SPA route: ${req.path}`);
+  
+  // Special case for API endpoints to prevent them from going through SPA routing
+  if (req.path.startsWith('/api/')) {
+    console.log(`API request to ${req.path} - not treating as SPA route`);
+    return res.status(404).json({ error: `API endpoint not found: ${req.path}` });
+  }
+  
+  // Log the static paths we're checking
+  console.log(`Looking for index.html in ${staticPaths.length} static paths`);
+  
   // First try to find index.html in each static path
   for (const staticPath of staticPaths) {
     const indexPath = path.join(staticPath, 'index.html');
     if (fs.existsSync(indexPath)) {
-      return res.sendFile(indexPath);
+      console.log(`✓ Found index.html at ${indexPath}, serving for SPA route: ${req.path}`);
+      return res.sendFile(indexPath, { 
+        headers: {
+          'Content-Type': 'text/html',
+          'X-SPA-Fallback': 'true' 
+        }
+      });
+    } else {
+      console.log(`✗ No index.html found at ${indexPath}`);
     }
   }
   
+  // Create a special check for the root route
+  if (req.path === '/') {
+    console.log('Request for root path, but no index.html found in any static directory');
+  }
+  
   // If not found, return a basic 404 page
+  console.log(`No index.html found in any static path for ${req.path}, returning 404`);
   res.status(404).send(`
     <!DOCTYPE html>
     <html>
@@ -322,6 +450,16 @@ app.get('*', (req, res) => {
       <h1>Page Not Found</h1>
       <p>The requested page does not exist in emergency mode.</p>
       <p><a href="/" style="color: #0087FF">Return Home</a></p>
+      <div style="margin-top: 20px; padding: 15px; background: #f8f8f8; border-radius: 5px; text-align: left;">
+        <h3>Debug Information:</h3>
+        <p>Requested Path: ${req.path}</p>
+        <p>User Agent: ${req.headers['user-agent'] || 'Not provided'}</p>
+        <p>Timestamp: ${new Date().toISOString()}</p>
+        <p>Checked Paths:</p>
+        <ul>
+          ${staticPaths.map(p => `<li>${p}/index.html - ${fs.existsSync(path.join(p, 'index.html')) ? 'Exists' : 'Not Found'}</li>`).join('')}
+        </ul>
+      </div>
     </body>
     </html>
   `);

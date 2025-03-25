@@ -61,8 +61,31 @@ const indexContent = '// STANDALONE EMERGENCY SERVER\n' +
 'for (const staticPath of possibleStaticPaths) {\n' +
 '  if (fs.existsSync(staticPath)) {\n' +
 '    console.log(\'Serving static files from \' + staticPath);\n' +
-'    app.use(express.static(staticPath));\n' +
+'    // Configure static file serving with proper options\n' +
+'    app.use(express.static(staticPath, {\n' +
+'      index: \'index.html\',   // Explicitly set index file\n' +
+'      etag: true,             // Enable ETags for caching\n' +
+'      lastModified: true,     // Send Last-Modified header\n' +
+'      maxAge: \'1h\',          // Cache for 1 hour\n' +
+'      fallthrough: true       // Continue to next middleware if file not found\n' +
+'    }));\n' +
 '    staticPathFound = true;\n' +
+'    // Log the contents to aid debugging\n' +
+'    try {\n' +
+'      console.log(\'Files in \' + staticPath + \':\');\n' +
+'      const files = fs.readdirSync(staticPath);\n' +
+'      files.forEach(file => console.log(\'  - \' + file));\n' +
+'      \n' +
+'      // Check if index.html exists and log its content\n' +
+'      const indexPath = path.join(staticPath, \'index.html\');\n' +
+'      if (fs.existsSync(indexPath)) {\n' +
+'        console.log(\'Found index.html at \' + indexPath);\n' +
+'      } else {\n' +
+'        console.log(\'WARNING: No index.html found in \' + staticPath);\n' +
+'      }\n' +
+'    } catch (err) {\n' +
+'      console.error(\'Error listing directory: \' + err.message);\n' +
+'    }\n' +
 '  }\n' +
 '}\n' +
 '\n' +

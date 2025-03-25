@@ -6,102 +6,27 @@ services:
     buildCommand: |
       echo "╔════════════════════════════════════════════════════════════╗"
       echo "║          BROKERGPT DEPLOYMENT BUILD PROCESS                ║" 
-      echo "║  Fixed Deployment Process (No Rollup Native Modules)       ║"
+      echo "║                Standard Build Process                      ║"
       echo "╚════════════════════════════════════════════════════════════╝"
+      
+      # Set memory limits for Node.js
+      export NODE_OPTIONS="--max-old-space-size=1024"
+      
+      # Show environment information
+      echo "Node version: $(node -v)"
+      echo "NPM version: $(npm -v)"
+      echo "Current directory: $(pwd)"
 
-      # CRITICAL FIX: Create a modified version of the Rollup native.js file before any other operations
-      # This completely avoids the problematic native module loading that's causing the error
-      echo "Creating Rollup native module patch..."
-      mkdir -p node_modules/rollup/dist/
-      cat > node_modules/rollup/dist/native.js << 'EOL'
-      // PATCHED by render.yaml build process - stub implementation that avoids native modules
-      exports.loadAndInitializeWasm = async function() {
-        console.log("Using patched Rollup native.js that skips native modules");
-        return { exports: {} };
-      };
+      # Install all dependencies for the build
+      echo "Installing all dependencies..."
+      npm ci || npm install
       
-      // Make all other functions no-ops
-      function noop() {}
-      exports.checkWasmModuleSupportWithInfo = noop;
-      exports.needsWasmFallback = false;
-      exports.wasmHelpers = { instantiateWebAssembly: noop };
-      
-      // Don't try to load the native module - skip this part
-      function requireWithFriendlyError() {
-        console.log("Skipping native module loading in Rollup");
-        return null;
-      }
-      
-      // Just return null instead of trying to load the native module
-      const nodeModule = null;
-      EOL
-      echo "✅ Created Rollup native module patch (CommonJS version)"
-      
-      # Fix for Rollup ESM module as well
-      cat > node_modules/rollup/dist/native.mjs << 'EOL'
-      // PATCHED by render.yaml build process - stub implementation that avoids native modules
-      export default class RollupWasm {
-        static async initialize() {
-          console.log("Using patched Rollup ESM native.mjs that skips native modules");
-          return {
-            // Stub implementation that won't crash
-            instantiate: () => ({ exports: {} }),
-            ready: Promise.resolve()
-          };
-        }
-      }
-      EOL
-      echo "✅ Created Rollup native module patch (ESM version)"
-      
-      # Set environment variables to skip native builds
-      export ROLLUP_SKIP_NODEJS_NATIVE=1
-      export NODE_OPTIONS="--max-old-space-size=384"
-      
-      # Install only essential dependencies
-      npm ci --omit=optional --no-fund --ignore-scripts || npm install --production --no-optional --ignore-scripts
-      
-      # Run the build script which handles static file generation and backend bundling
+      # Run the simplified build script
       bash render-build.sh
       
     startCommand: >
       NODE_ENV=production 
-      bash -c "
-        # Set memory limits to prevent OOM crashes
-        export NODE_OPTIONS='--max-old-space-size=384'
-        
-        # First try our universal production starter script
-        if [ -f start-production.js ]; then
-          echo 'Starting with universal production script...'
-          node start-production.js || echo 'Universal starter failed, trying alternatives...'
-        fi
-
-        # If that fails, try the emergency server directly
-        if [ $? -ne 0 ] && [ -f emergency-server.js ]; then
-          echo 'Starting emergency server directly...'
-          node emergency-server.js || echo 'Emergency server failed, trying fallbacks...'
-        fi
-
-        # If even that fails, try dist/index.js
-        if [ $? -ne 0 ] && [ -f dist/index.js ]; then
-          echo 'Starting from dist/index.js...'
-          node dist/index.js || echo 'All server starts failed!'
-        fi
-
-        # Create a guaranteed minimal server as last resort
-        if [ $? -ne 0 ]; then
-          echo 'Creating and starting minimal HTTP server...'
-          cat > minimal-server.js << 'EOL'
-      import http from 'http';
-      const server = http.createServer((req, res) => {
-        res.writeHead(200, {'Content-Type': 'text/html'});
-        res.end('<html><body><h1>BrokerGPT</h1><p>Minimal server is running. All other starts failed.</p></body></html>');
-      });
-      server.listen(process.env.PORT || 10000, '0.0.0.0');
-      console.log('Minimal HTTP server running on port ' + (process.env.PORT || 10000));
-      EOL
-          node minimal-server.js
-        fi
-      "
+      node dist/index.js
     envVars:
       - key: NODE_ENV
         value: production
@@ -115,5 +40,3 @@ services:
         sync: false
       - key: PORT
         value: 10000
-      - key: ROLLUP_SKIP_NODEJS_NATIVE
-        value: "1"

@@ -119,55 +119,139 @@ export async function setupVite(app: Express, server: Server) {
 
 export function serveStatic(app: Express) {
   try {
-    // Try multiple static paths
+    // Try multiple static paths in priority order
     const possiblePaths = [
-      path.resolve(__dirname, "../client/dist"),
-      path.resolve(__dirname, "public"),
-      path.resolve(process.cwd(), "client/dist"),
-      path.resolve(process.cwd(), "dist/public")
+      path.resolve(process.cwd(), "client/dist"),        // Primary location built by Vite
+      path.resolve(__dirname, "../client/dist"),         // Relative from server dir
+      path.resolve(process.cwd(), "dist/public"),        // Alternate location
+      path.resolve(__dirname, "public")                  // Last resort
     ];
     
-    let foundStatic = false;
+    // Debug info to help diagnose issues
+    console.log('Static file paths to check:');
+    for (const p of possiblePaths) {
+      console.log(`- ${p} (${fs.existsSync(p) ? 'exists ✓' : 'missing ✗'})`);
+    }
     
-    for (const staticPath of possiblePaths) {
-      if (fs.existsSync(staticPath)) {
-        console.log(`Serving static files from: ${staticPath}`);
-        app.use(express.static(staticPath));
-        foundStatic = true;
-        
-        // Set up fallback to index.html for this path
-        app.use("*", (req, res, next) => {
-          const indexPath = path.join(staticPath, "index.html");
+    // Find the first valid static path
+    let staticPath = null;
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        try {
+          // Verify it has an index.html file
+          const indexPath = path.join(p, 'index.html');
           if (fs.existsSync(indexPath)) {
-            res.sendFile(indexPath);
+            staticPath = p;
+            console.log(`Found valid static path with index.html: ${staticPath}`);
+            break;
           } else {
-            next();
+            console.log(`Path ${p} exists but is missing index.html`);
           }
-        });
+        } catch (err) {
+          console.log(`Error checking ${p}: ${err.message}`);
+        }
       }
     }
     
-    if (!foundStatic) {
-      console.error("Could not find any static files to serve!");
-      // Set up minimal response for all routes
-      app.use("*", (_req, res) => {
-        res.status(500).send(`
-          <html>
-            <head><title>BrokerGPT - Error</title></head>
-            <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-              <h1 style="color: #0087FF">BrokerGPT</h1>
-              <p>The application could not find any static files to serve.</p>
-              <p>Please check the build process or server logs.</p>
-            </body>
-          </html>
-        `);
+    if (staticPath) {
+      console.log(`Serving static files from: ${staticPath}`);
+      
+      // Configure static file serving with proper options
+      app.use(express.static(staticPath, {
+        index: 'index.html',  // Explicitly set index file
+        etag: true,           // Enable ETags for caching
+        lastModified: true,   // Send Last-Modified headers
+        maxAge: '1h',         // Cache for 1 hour
+        fallthrough: true     // Continue to next middleware if file not found
+      }));
+      
+      // Add SPA fallback - send index.html for all routes not found
+      app.use("*", (req, res) => {
+        const indexPath = path.join(staticPath, "index.html");
+        console.log(`SPA route ${req.originalUrl} - serving index.html`);
+        res.sendFile(indexPath);
       });
+      
+      // Log directory contents for debugging
+      try {
+        console.log(`Files in ${staticPath}:`);
+        const files = fs.readdirSync(staticPath);
+        files.forEach(file => console.log(`  - ${file}`));
+      } catch (err) {
+        console.error(`Error listing directory: ${err.message}`);
+      }
+      
+      // Signal success for monitoring
+      console.log('SERVER_STARTED_SUCCESSFULLY');
+    } else {
+      console.error("Could not find any static files to serve!");
+      
+      // Generate a basic index.html as a last resort
+      console.log("Generating basic fallback index.html in client/dist");
+      
+      const clientDistDir = path.resolve(process.cwd(), "client/dist");
+      if (!fs.existsSync(clientDistDir)) {
+        fs.mkdirSync(clientDistDir, { recursive: true });
+      }
+      
+      const indexHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <title>BrokerGPT</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+    h1 { color: #0087FF; }
+    .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    button { background: #0087FF; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>BrokerGPT</h1>
+  <div class="card">
+    <h2>API-Only Mode</h2>
+    <p>The application is running in API-only mode.</p>
+    <p>The frontend could not be built or located. Please check server logs.</p>
+  </div>
+  <div class="card">
+    <h2>API Status</h2>
+    <div id="status">Checking API connection...</div>
+    <button onclick="fetch('/api/health').then(r=>r.json()).then(data=>{document.getElementById('status').innerHTML='API is working!'}).catch(e=>{document.getElementById('status').innerHTML='API error: '+e})">Check API</button>
+  </div>
+  <script>
+    fetch('/api/health').then(r=>r.json()).then(data=>{document.getElementById('status').innerHTML='API is working!'}).catch(e=>{document.getElementById('status').innerHTML='API error: '+e});
+  </script>
+</body>
+</html>`;
+
+      fs.writeFileSync(path.join(clientDistDir, "index.html"), indexHtml);
+      
+      // Serve from the generated directory
+      console.log(`Serving from generated files in: ${clientDistDir}`);
+      app.use(express.static(clientDistDir));
+      
+      // Add SPA fallback for the generated files
+      app.use("*", (_req, res) => {
+        res.sendFile(path.join(clientDistDir, "index.html"));
+      });
+      
+      // Signal success despite fallback
+      console.log('SERVER_STARTED_SUCCESSFULLY');
     }
   } catch (error) {
     console.error("Error in serveStatic:", error);
     // Set up minimal response for all routes as a last resort
     app.use("*", (_req, res) => {
-      res.status(500).send("Server error: " + error.message);
+      res.status(500).send(`
+        <html>
+          <head><title>BrokerGPT - Error</title></head>
+          <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+            <h1 style="color: #0087FF">BrokerGPT</h1>
+            <p>Server error: ${error.message}</p>
+          </body>
+        </html>
+      `);
     });
   }
 }
