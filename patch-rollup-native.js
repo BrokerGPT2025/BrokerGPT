@@ -10,15 +10,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 console.log('🔧 ROLLUP NATIVE MODULE PATCHER 🔧');
-console.log(`Working in directory: ${process.cwd()}`);
+console.log('Working in directory: ' + process.cwd());
 
 // Create the rollup/dist directory if it doesn't exist
 const rollupDistDir = path.join(process.cwd(), 'node_modules', 'rollup', 'dist');
 try {
   fs.mkdirSync(rollupDistDir, { recursive: true });
-  console.log(`Created directory: ${rollupDistDir}`);
+  console.log('Created directory: ' + rollupDistDir);
 } catch (err) {
-  console.log(`Directory ${rollupDistDir} already exists or couldn't be created`);
+  console.log('Directory ' + rollupDistDir + ' already exists or couldn\'t be created');
 }
 
 // Create the CommonJS version (native.js)
@@ -60,11 +60,11 @@ export default class RollupWasm {
 try {
   const nativeJsPath = path.join(rollupDistDir, 'native.js');
   fs.writeFileSync(nativeJsPath, nativeJsContent);
-  console.log(`✅ Created patched native.js at ${nativeJsPath}`);
+  console.log('✅ Created patched native.js at ' + nativeJsPath);
   
   const nativeMjsPath = path.join(rollupDistDir, 'native.mjs');
   fs.writeFileSync(nativeMjsPath, nativeMjsContent);
-  console.log(`✅ Created patched native.mjs at ${nativeMjsPath}`);
+  console.log('✅ Created patched native.mjs at ' + nativeMjsPath);
   
   console.log('✅ Successfully patched Rollup native modules');
 } catch (err) {
