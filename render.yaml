@@ -6,70 +6,63 @@ services:
     buildCommand: |
       echo "╔════════════════════════════════════════════════════════════╗"
       echo "║          BROKERGPT DEPLOYMENT BUILD PROCESS                ║" 
-      echo "║      Enhanced Multi-step Vite + ESM Build Process          ║"
+      echo "║  Fixed Deployment Process (No Rollup Native Modules)       ║"
       echo "╚════════════════════════════════════════════════════════════╝"
+
+      # CRITICAL FIX: Create a modified version of the Rollup native.js file before any other operations
+      # This completely avoids the problematic native module loading that's causing the error
+      echo "Creating Rollup native module patch..."
+      mkdir -p node_modules/rollup/dist/
+      cat > node_modules/rollup/dist/native.js << 'EOL'
+      // PATCHED by render.yaml build process - stub implementation that avoids native modules
+      exports.loadAndInitializeWasm = async function() {
+        console.log("Using patched Rollup native.js that skips native modules");
+        return { exports: {} };
+      };
       
-      # Set memory limits to avoid OOM crashes
+      // Make all other functions no-ops
+      function noop() {}
+      exports.checkWasmModuleSupportWithInfo = noop;
+      exports.needsWasmFallback = false;
+      exports.wasmHelpers = { instantiateWebAssembly: noop };
+      
+      // Don't try to load the native module - skip this part
+      function requireWithFriendlyError() {
+        console.log("Skipping native module loading in Rollup");
+        return null;
+      }
+      
+      // Just return null instead of trying to load the native module
+      const nodeModule = null;
+      EOL
+      echo "✅ Created Rollup native module patch (CommonJS version)"
+      
+      # Fix for Rollup ESM module as well
+      cat > node_modules/rollup/dist/native.mjs << 'EOL'
+      // PATCHED by render.yaml build process - stub implementation that avoids native modules
+      export default class RollupWasm {
+        static async initialize() {
+          console.log("Using patched Rollup ESM native.mjs that skips native modules");
+          return {
+            // Stub implementation that won't crash
+            instantiate: () => ({ exports: {} }),
+            ready: Promise.resolve()
+          };
+        }
+      }
+      EOL
+      echo "✅ Created Rollup native module patch (ESM version)"
+      
+      # Set environment variables to skip native builds
+      export ROLLUP_SKIP_NODEJS_NATIVE=1
       export NODE_OPTIONS="--max-old-space-size=384"
       
-      # Set platform specifics to avoid Rollup native dependency issues
-      export ROLLUP_SKIP_NODEJS_NATIVE=1
-      export ESBUILD_BINARY_PATH="/tmp/esbuild-binary"
+      # Install only essential dependencies
+      npm ci --omit=optional --no-fund --ignore-scripts || npm install --production --no-optional --ignore-scripts
       
-      # Install dependencies with production flag to save time and space
-      NODE_ENV=production npm ci --production --no-optional --no-fund --ignore-scripts || npm install --production --no-optional --ignore-scripts
-      
-      # Make all build scripts executable
-      find . -name "*.sh" -exec chmod +x {} \;
-      
-      # Create a guaranteed emergency server regardless of build success
-      node fix-emergency-server.js || echo "Failed to create emergency server, but continuing"
-      
-      # Generate a simple static frontend without Vite/Rollup
-      echo "Generating static frontend without Vite/Rollup..."
-      node static-frontend.js || echo "Static frontend generation failed, continuing anyway"
-      
-      # Run our advanced Vite installer first if requested
-      echo "Running Vite-free installer..."
-      node install-vite.cjs || echo "Vite installer skipped, continuing without it"
-      
-      # Install core build tools locally - avoid global installs that cause permissions issues
-      npm install vite@latest esbuild@latest tsx@latest @vitejs/plugin-react@latest react react-dom --no-optional
-      
-      # Set PATH to include node_modules/.bin to avoid npm bin -g errors
-      export PATH="$PWD/node_modules/.bin:$PATH"
-      echo "PATH now includes: $PATH"
-      
-      # Try to use a dedicated CommonJS-mode build package as a temporary build environment
-      if [ -f "build-package.json" ]; then
-        echo "Using temporary CommonJS build package.json..."
-        cp build-package.json build-package.json.bak
-        mv build-package.json package.json
-        npm i
-      fi
-      
-      # Check if Vite is properly installed
-      node verify-vite.js
-      
-      # Use CommonJS build script first (most compatible) 
-      echo "Running custom Vite build script (CommonJS)..."
-      node custom-vite-build.cjs || true
-      
-      # Try our special Render build script
-      echo "Running special render build script..."
-      node render-build-special.cjs || true
-      
-      # Run our enhanced build script to handle all fallbacks
-      echo "Running complete render build script..."
+      # Run the build script which handles static file generation and backend bundling
       bash render-build.sh
       
-      # Restore original package.json if we used the temporary one
-      if [ -f "build-package.json.bak" ]; then
-        mv build-package.json.bak package.json
-      fi
-      
-    # Comprehensive startup command with multiple fallbacks
-    # This will be used by Render.com as the primary start command
     startCommand: >
       NODE_ENV=production 
       bash -c "
@@ -98,14 +91,14 @@ services:
         if [ $? -ne 0 ]; then
           echo 'Creating and starting minimal HTTP server...'
           cat > minimal-server.js << 'EOL'
-import http from 'http';
-const server = http.createServer((req, res) => {
-  res.writeHead(200, {'Content-Type': 'text/html'});
-  res.end('<html><body><h1>BrokerGPT</h1><p>Minimal server is running. All other starts failed.</p></body></html>');
-});
-server.listen(process.env.PORT || 10000, '0.0.0.0');
-console.log('Minimal HTTP server running on port ' + (process.env.PORT || 10000));
-EOL
+      import http from 'http';
+      const server = http.createServer((req, res) => {
+        res.writeHead(200, {'Content-Type': 'text/html'});
+        res.end('<html><body><h1>BrokerGPT</h1><p>Minimal server is running. All other starts failed.</p></body></html>');
+      });
+      server.listen(process.env.PORT || 10000, '0.0.0.0');
+      console.log('Minimal HTTP server running on port ' + (process.env.PORT || 10000));
+      EOL
           node minimal-server.js
         fi
       "
@@ -114,15 +107,13 @@ EOL
         value: production
       - key: OPENAI_API_KEY
         sync: false
-      - key: SERPER_API_KEY
-        sync: false
-      - key: BROWSERLESS_API_KEY
-        sync: false
-      - key: DATABASE_URL
-        sync: false
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_KEY
         sync: false
+      - key: DATABASE_URL
+        sync: false
       - key: PORT
         value: 10000
+      - key: ROLLUP_SKIP_NODEJS_NATIVE
+        value: "1"
