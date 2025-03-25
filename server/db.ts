@@ -88,26 +88,7 @@ function extractHostInfo(connectionString: string): { host: string; port: number
   return null;
 }
 
-/**
- * Get a direct IP for Supabase connection
- * This helps bypass DNS resolution issues
- * 
- * Note: This is a fallback approach that should only be used if
- * the DNS fix doesn't work.
- */
-function getSupabaseDirectIP(): string | null {
-  // Known Supabase IP addresses that we can try
-  const SUPABASE_IPS = [
-    '104.18.38.10',    // From nslookup pnikbrakkfottoylxaxy.supabase.co
-    '172.64.149.246',  // From nslookup pnikbrakkfottoylxaxy.supabase.co
-  ];
-  
-  // Default to first IP
-  const ip = SUPABASE_IPS[0];
-  console.log(`[FALLBACK] Using Supabase IP as last resort: ${ip}`);
-  console.log('[FALLBACK] Note: DNS fix should have fixed this already!');
-  return ip;
-}
+// Direct IP approach has been removed - using only DNS
 
 /**
  * Manual test of IPv4 connectivity
@@ -237,54 +218,23 @@ async function attemptDatabaseConnection(attempt = 1): Promise<boolean> {
       
       console.log(`Extracted host info: ${hostInfo.host}:${hostInfo.port}`);
       
-      // Check if this is a Supabase connection
-      const isSupabase = hostInfo.host.includes('supabase');
-      
-      // Try to use a direct IP if this is Supabase
-      let directIP = null;
-      if (isSupabase) {
-        console.log('Detected Supabase database, trying direct IP connection');
-        directIP = getSupabaseDirectIP();
-      }
-      
       // Build connection options with optimizations for Render.com
-      let connectionOptions: pg.PoolConfig;
-      
-      if (directIP) {
-        // Use direct IP instead of hostname
-        console.log(`Creating connection with direct IP: ${directIP} instead of hostname`);
-        connectionOptions = {
-          host: directIP,
-          port: hostInfo.port,
-          user: hostInfo.user,
-          password: hostInfo.password,
-          database: hostInfo.database,
-          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-          // Force IPv4
-          family: 4,
-          // Increase timeouts
-          connectionTimeoutMillis: 30000,
-          idle_in_transaction_session_timeout: 30000,
-          // Set a small pool to avoid connection issues
-          max: 5,
-          min: 0
-        };
-      } else {
-        // Use standard connection string
-        console.log('Using standard connection string');
-        connectionOptions = {
-          connectionString: process.env.DATABASE_URL,
-          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-          // Force IPv4 to avoid ENETUNREACH on IPv6
-          family: 4,
-          // Increase timeouts
-          connectionTimeoutMillis: 30000,
-          idle_in_transaction_session_timeout: 30000,
-          // Set a small pool to avoid connection issues
-          max: 5,
-          min: 0
-        };
-      }
+      // Always use the connection string approach - DNS fix should have fixed the hostname
+      console.log('Using connection string directly');
+      const connectionOptions: pg.PoolConfig = {
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+        // Force IPv4 to avoid ENETUNREACH on IPv6
+        family: 4,
+        // Further increase timeouts for Supabase in production
+        connectionTimeoutMillis: 60000, // 60 seconds
+        idle_in_transaction_session_timeout: 60000,
+        // Set a small pool to avoid connection issues
+        max: 3,
+        min: 0,
+        // Add statement timeout 
+        statement_timeout: 30000
+      };
       
       // Log connection options (without credentials)
       console.log(`Connection options: max=${connectionOptions.max}, family=${connectionOptions.family}, timeout=${connectionOptions.connectionTimeoutMillis}ms`);
@@ -338,6 +288,58 @@ async function attemptDatabaseConnection(attempt = 1): Promise<boolean> {
 }
 
 /**
+ * Tries a last resort connection to check if PostgreSQL is accessible at all
+ */
+async function tryEmergencyConnection() {
+  console.log('🚨 Attempting emergency connection to validate database availability...');
+  
+  if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.includes('supabase')) {
+    console.log('Not a Supabase database or DATABASE_URL not set, skipping emergency check');
+    return false;
+  }
+  
+  try {
+    // Extract just the project ID
+    const matches = process.env.DATABASE_URL.match(/supabase\.co/);
+    if (!matches) {
+      console.log('Could not extract Supabase project from URL, skipping emergency check');
+      return false;
+    }
+    
+    console.log('Checking if PostgreSQL is accessible via HTTP API...');
+    const apiUrl = 'https://supabase.com/dashboard/project/status';
+    console.log(`Would check status at: ${apiUrl} (not implemented)`);
+    
+    // Create a separate connection with extreme timeout
+    const emergencyPoolConfig = {
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+      connectionTimeoutMillis: 120000, // 2 minutes
+      family: 4,
+      max: 1
+    };
+    
+    console.log('Creating emergency pool with 2 minute timeout...');
+    const emergencyPool = new pg.Pool(emergencyPoolConfig);
+    
+    try {
+      console.log('Attempting simple query...');
+      const result = await emergencyPool.query('SELECT 1 as test');
+      console.log('✅ Emergency connection successful!', result.rows[0]);
+      await emergencyPool.end();
+      return true;
+    } catch (innerError) {
+      console.error('⛔ Emergency connection also failed:', innerError.message);
+      await emergencyPool.end();
+      return false;
+    }
+  } catch (error) {
+    console.error('Emergency connection check failed:', error);
+    return false;
+  }
+}
+
+/**
  * Initializes the database connection and sets up tables if needed
  */
 async function initializeDatabase() {
@@ -363,6 +365,11 @@ async function initializeDatabase() {
     }
   } else {
     console.error("DATABASE CONNECTION FAILED - Application will have limited functionality");
+    
+    // Try emergency connection as last resort
+    await tryEmergencyConnection();
+    
+    console.log("Continuing with limited functionality regardless");
   }
 }
 

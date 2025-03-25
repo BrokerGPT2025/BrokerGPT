@@ -71,6 +71,14 @@ export function fixSupabaseConnection() {
   
   if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('supabase')) {
     const originalDbUrl = process.env.DATABASE_URL;
+    
+    // Extract original hostname for debugging
+    const originalHostMatch = originalDbUrl.match(/@([^:]+):/);
+    if (originalHostMatch && originalHostMatch[1]) {
+      process.env.ORIGINAL_DB_HOSTNAME = originalHostMatch[1];
+      console.log(`[DNS-FIX] Original DB hostname: ${originalHostMatch[1]}`);
+    }
+    
     const fixedDbUrl = fixSupabaseHostname(originalDbUrl);
     
     if (fixedDbUrl !== originalDbUrl) {
@@ -81,8 +89,13 @@ export function fixSupabaseConnection() {
       console.log(`[DNS-FIX] Original: ${maskedOriginal}`);
       console.log(`[DNS-FIX] Fixed: ${maskedFixed}`);
       
+      // Mark that the DNS fix was applied
+      process.env.DNS_FIX_APPLIED = 'true';
+      
       // Actually update the environment variable
       process.env.DATABASE_URL = fixedDbUrl;
+    } else {
+      console.log('[DNS-FIX] No changes needed for DATABASE_URL');
     }
   }
   
@@ -95,10 +108,18 @@ export function fixSupabaseConnection() {
       console.log(`[DNS-FIX] Original: ${originalApiUrl}`);
       console.log(`[DNS-FIX] Fixed: ${fixedApiUrl}`);
       
+      // Mark that the DNS fix was applied
+      process.env.DNS_FIX_APPLIED = 'true';
+      
       // Update the environment variable
       process.env.SUPABASE_URL = fixedApiUrl;
+    } else {
+      console.log('[DNS-FIX] No changes needed for SUPABASE_URL');
     }
   }
+  
+  // Set the current time when the fix was applied
+  process.env.DNS_FIX_TIMESTAMP = new Date().toISOString();
   
   console.log('[DNS-FIX] Supabase URL fix completed');
 }

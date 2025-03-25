@@ -55,7 +55,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       environment: process.env.NODE_ENV || "development",
       database: {
         available: isDatabaseAvailable(),
-        type: process.env.DATABASE_URL?.includes('neon.tech') ? "neon" : "postgresql"
+        type: process.env.DATABASE_URL?.includes('neon.tech') ? "neon" : 
+              process.env.DATABASE_URL?.includes('supabase') ? "supabase" : "postgresql"
       },
       memory: {
         heapTotal: Math.round(process.memoryUsage().heapTotal / (1024 * 1024)),
@@ -66,6 +67,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
       uptime: Math.floor(process.uptime())
     };
     res.json(healthInfo);
+  });
+  
+  // Add detailed status endpoint for debugging connection issues
+  apiRouter.get("/status", async (req: Request, res: Response) => {
+    try {
+      // Database connection info
+      const dbStatus = {
+        available: isDatabaseAvailable(),
+        type: process.env.DATABASE_URL?.includes('neon.tech') ? 'neon' : 
+              process.env.DATABASE_URL?.includes('supabase') ? 'supabase' : 'postgresql',
+        url: process.env.DATABASE_URL ? 
+             process.env.DATABASE_URL.replace(/postgres(?:ql)?:\/\/([^:]+):([^@]+)@/, 'postgres://$1:***@') : 
+             'not set'
+      };
+      
+      // Supabase connection info
+      const supabaseStatus = {
+        available: !!supabase.supabase,
+        url: process.env.SUPABASE_URL ? 
+             process.env.SUPABASE_URL.replace(/pnik.*\.co/, '<redacted>') : 
+             'not set'
+      };
+      
+      // Try a live database query
+      let dbConnectionTest = false;
+      let dbQueryError = null;
+      try {
+        if (pool) {
+          console.log('Testing database connection with query...');
+          const result = await pool.query('SELECT 1 as test');
+          dbConnectionTest = result.rows[0].test === 1;
+          console.log('Database test query successful');
+        }
+      } catch (e) {
+        console.error('Status check query failed:', e);
+        dbQueryError = e.message;
+      }
+      
+      // Try a simple Supabase query
+      let supabaseConnectionTest = false;
+      let supabaseQueryError = null;
+      try {
+        if (supabase.supabase) {
+          console.log('Testing Supabase connection with query...');
+          const { data, error } = await supabase.supabase
+            .from('clients')
+            .select('*')
+            .limit(1);
+          supabaseConnectionTest = !error;
+          if (error) {
+            supabaseQueryError = error.message;
+          } else {
+            console.log('Supabase test query successful');
+          }
+        }
+      } catch (e) {
+        console.error('Supabase status check failed:', e);
+        supabaseQueryError = e.message;
+      }
+      
+      // Return all status info
+      res.json({
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development',
+        database: {
+          ...dbStatus,
+          connectionTest: dbConnectionTest,
+          queryError: dbQueryError
+        },
+        supabase: {
+          ...supabaseStatus,
+          connectionTest: supabaseConnectionTest,
+          queryError: supabaseQueryError
+        },
+        dnsSettings: {
+          // Check if our DNS fix was applied
+          dnsFix: process.env.DNS_FIX_APPLIED === 'true' || 'not explicitly verified',
+          // Original and current hostname for comparison
+          originalDbHost: process.env.ORIGINAL_DB_HOSTNAME || 'not recorded',
+          currentDbHost: process.env.DATABASE_URL ? 
+                        (process.env.DATABASE_URL.match(/@([^:]+):/)?.[1] || 'unknown') : 
+                        'no database url'
+        },
+        memory: {
+          heapTotal: Math.round(process.memoryUsage().heapTotal / (1024 * 1024)),
+          heapUsed: Math.round(process.memoryUsage().heapUsed / (1024 * 1024)),
+          rss: Math.round(process.memoryUsage().rss / (1024 * 1024)),
+          units: "MB"
+        },
+        uptime: Math.floor(process.uptime())
+      });
+    } catch (error) {
+      console.error('Error generating status response:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Failed to generate status', 
+        error: error.message 
+      });
+    }
   });
 
   // Carriers endpoints
