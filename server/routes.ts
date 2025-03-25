@@ -1,4 +1,4 @@
-import express, { type Request, Response } from "express";
+import express, { type Request, Response, NextFunction } from "express";
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
@@ -8,9 +8,62 @@ import { ZodError } from "zod";
 import { pool, isDatabaseAvailable } from './db';
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Add CORS middleware for cross-origin requests
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // Allow requests from any origin in development
+    // In production, restrict to your specific domain(s)
+    const allowedOrigins = process.env.NODE_ENV === 'production' 
+      ? [process.env.ALLOWED_ORIGIN || 'https://brokergpt.onrender.com'] 
+      : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:8080'];
+    
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      // Allow any origin in development, or if no specific origin matches
+      res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+    
+    // Allow common headers and methods
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    
+    next();
+  });
+  
+  // Add request size limits to prevent large payload attacks
+  app.use(express.json({ limit: '2mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+  
   // Create an API router
   const apiRouter = express.Router();
   app.use("/api", apiRouter);
+  
+  // Add health check endpoint for Render deployment
+  apiRouter.get("/health", (req: Request, res: Response) => {
+    const healthInfo = {
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || "development",
+      database: {
+        available: isDatabaseAvailable(),
+        type: process.env.DATABASE_URL?.includes('neon.tech') ? "neon" : "postgresql"
+      },
+      memory: {
+        heapTotal: Math.round(process.memoryUsage().heapTotal / (1024 * 1024)),
+        heapUsed: Math.round(process.memoryUsage().heapUsed / (1024 * 1024)),
+        rss: Math.round(process.memoryUsage().rss / (1024 * 1024)),
+        units: "MB"
+      },
+      uptime: Math.floor(process.uptime())
+    };
+    res.json(healthInfo);
+  });
 
   // Carriers endpoints
   apiRouter.get("/carriers", async (req: Request, res: Response) => {

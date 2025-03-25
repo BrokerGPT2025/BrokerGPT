@@ -120,6 +120,67 @@ app.use((req, res, next) => {
     server.listen(port, '0.0.0.0', () => {
       log(`serving on port ${port}`);
     });
+    
+    // Set up graceful shutdown handlers
+    setupGracefulShutdown(server);
+  }
+    
+  // Helper function for graceful shutdown
+  function setupGracefulShutdown(server: Server) {
+    // Track connections
+    let connections: Record<string, any> = {};
+    let connectionCounter = 0;
+    
+    // Track connections
+    server.on('connection', (conn) => {
+      const key = `${connectionCounter++}`;
+      connections[key] = conn;
+      conn.on('close', () => {
+        delete connections[key];
+      });
+    });
+    
+    // Handle shutdown signals
+    const signals = ['SIGTERM', 'SIGINT', 'SIGUSR2']; // SIGUSR2 is for Nodemon
+    
+    signals.forEach((signal) => {
+      process.on(signal, () => {
+        console.log(`\n${signal} received. Starting graceful shutdown...`);
+        
+        // Stop accepting new connections
+        server.close(() => {
+          console.log('HTTP server closed.');
+          
+          // Close database connections
+          try {
+            if (pool) {
+              console.log('Closing database pool...');
+              pool.end();
+              console.log('Database pool closed.');
+            }
+          } catch (err) {
+            console.error('Error closing database pool:', err);
+          }
+          
+          console.log('Graceful shutdown completed.');
+          process.exit(0);
+        });
+        
+        // Force close after timeout
+        setTimeout(() => {
+          console.error('Forcing shutdown after timeout...');
+          process.exit(1);
+        }, 30000); // 30 seconds
+        
+        // Force close existing connections after short delay
+        setTimeout(() => {
+          console.log(`Closing ${Object.keys(connections).length} remaining connections...`);
+          for (const key in connections) {
+            connections[key].destroy();
+          }
+        }, 10000); // 10 seconds
+      });
+    });
   } catch (error) {
     console.error("Critical server error:", error);
     console.log("Starting emergency fallback server...");
