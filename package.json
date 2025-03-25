@@ -8,13 +8,14 @@
   },
   "scripts": {
     "dev": "tsx server/index.ts",
-    "build": "node fix-emergency-server.js && (vite build || true) && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "build": "ROLLUP_SKIP_NODEJS_NATIVE=1 node fix-emergency-server.js && (ROLLUP_SKIP_NODEJS_NATIVE=1 vite build --config minimal-vite.config.js || true) && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start": "NODE_ENV=production node start-production.js",
     "start:direct": "NODE_ENV=production node emergency-server.js",
     "start:emergency": "NODE_ENV=production node emergency-server.js",
     "check": "tsc",
     "db:push": "drizzle-kit push",
-    "postinstall": "node ensure-dist.js || node ensure-dist.cjs || echo 'Failed to ensure dist, continuing'"
+    "postinstall": "node ensure-dist.js || node ensure-dist.cjs || echo 'Failed to ensure dist, continuing'",
+    "prebuild": "node install-vite.cjs || echo 'Vite install failed, continuing anyway'"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

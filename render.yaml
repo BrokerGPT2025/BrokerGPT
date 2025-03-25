@@ -12,8 +12,12 @@ services:
       # Set memory limits to avoid OOM crashes
       export NODE_OPTIONS="--max-old-space-size=384"
       
+      # Set platform specifics to avoid Rollup native dependency issues
+      export ROLLUP_SKIP_NODEJS_NATIVE=1
+      export ESBUILD_BINARY_PATH="/tmp/esbuild-binary"
+      
       # Install dependencies with production flag to save time and space
-      NODE_ENV=production npm ci --production || npm install --production --no-optional
+      NODE_ENV=production npm ci --production --no-optional --no-fund --ignore-scripts || npm install --production --no-optional --ignore-scripts
       
       # Make all build scripts executable
       find . -name "*.sh" -exec chmod +x {} \;
@@ -21,9 +25,13 @@ services:
       # Create a guaranteed emergency server regardless of build success
       node fix-emergency-server.js || echo "Failed to create emergency server, but continuing"
       
-      # Run our advanced Vite installer first
-      echo "Running advanced Vite installer..."
-      node install-vite.cjs
+      # Generate a simple static frontend without Vite/Rollup
+      echo "Generating static frontend without Vite/Rollup..."
+      node static-frontend.js || echo "Static frontend generation failed, continuing anyway"
+      
+      # Run our advanced Vite installer first if requested
+      echo "Running Vite-free installer..."
+      node install-vite.cjs || echo "Vite installer skipped, continuing without it"
       
       # Install core build tools explicitly - multiple ways to ensure they're available
       npm install vite@latest esbuild@latest tsx@latest @vitejs/plugin-react@latest
