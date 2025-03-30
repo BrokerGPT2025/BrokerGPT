@@ -49,8 +49,9 @@ function App() {
     setIsLoading(true); // Show loading indicator
 
     try {
-      // --- Call Backend API ---
-      const response = await fetch('http://localhost:3001/api/search', { // Assuming backend runs on 3001
+      // --- Call Deployed Backend API ---
+      const backendUrl = 'https://brokergpt-back-end.onrender.com/api/search'; // Use deployed backend URL
+      const response = await fetch(backendUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,21 +65,43 @@ function App() {
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = await response.json(); // Should contain { searchQuery, businessProfile, scrapedSources }
 
-      // --- Process and Display Serper Response ---
-      let botContent = "No results found."; // Default message
+      // --- Process and Display Gemini Response ---
+      let botContent = "Could not generate business profile."; // Default message
 
-      // Extract and format organic results if they exist
-      if (data.organic && Array.isArray(data.organic) && data.organic.length > 0) {
-         botContent = data.organic.slice(0, 5).map((result: OrganicResult) => // Limit to top 5 results for brevity
-           `Title: ${result.title}\nLink: ${result.link}\nSnippet: ${result.snippet}\n---`
-         ).join('\n\n');
-      } else if (data.answerBox) {
-         // Handle potential answer box if needed
-         botContent = `Answer Box: ${data.answerBox.answer || data.answerBox.snippet || 'Content unavailable'}`;
+      if (data.businessProfile) {
+        if (typeof data.businessProfile === 'object' && !data.businessProfile.parseError) {
+          // Format the JSON profile for display
+          // You might want to make this prettier later
+          botContent = `Business Profile for "${data.searchQuery}":\n\n`;
+          botContent += `Name: ${data.businessProfile.companyName || 'Not Found'}\n`;
+          botContent += `Website: ${data.businessProfile.websiteUrl || 'Not Found'}\n`;
+          botContent += `Address: ${data.businessProfile.primaryAddress || 'Not Found'}\n`;
+          botContent += `Phone: ${data.businessProfile.mainPhoneNumber || 'Not Found'}\n`;
+          botContent += `Description: ${data.businessProfile.businessDescription || 'Not Found'}\n`;
+          if (data.businessProfile.keyContacts && data.businessProfile.keyContacts.length > 0) {
+            botContent += `Contacts:\n`;
+            data.businessProfile.keyContacts.forEach((contact: { name: string, title: string }) => {
+              botContent += `  - ${contact.name || 'N/A'} (${contact.title || 'N/A'})\n`;
+            });
+          } else {
+             botContent += `Contacts: Not Found\n`;
+          }
+          if (data.scrapedSources && data.scrapedSources.length > 0) {
+             botContent += `\nSources:\n${data.scrapedSources.join('\n')}`;
+          }
+
+        } else if (data.businessProfile.rawResponse) {
+           // Handle case where JSON parsing failed on backend
+           botContent = `LLM response could not be parsed as JSON:\n\n${data.businessProfile.rawResponse}`;
+        } else {
+           // Handle other unexpected businessProfile content
+           botContent = `Received unexpected profile data format.`;
+        }
+      } else if (data.message) { // Handle cases where backend returns a message (e.g., no usable content scraped)
+        botContent = data.message;
       }
-      // Add more processing here if needed for other Serper result types (knowledgeGraph, etc.)
 
       const newBotMessage: Message = { sender: 'bot', content: botContent };
       setMessages((prevMessages) => [...prevMessages, newBotMessage]);
