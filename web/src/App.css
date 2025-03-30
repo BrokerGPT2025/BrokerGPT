@@ -40,3 +40,105 @@
 .read-the-docs {
   color: #888;
 }
+
+/* --- Chat Interface Styles --- */
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 4rem); /* Adjust height as needed, leave space for padding */
+  max-width: 800px; /* Limit chat width */
+  margin: 0 auto; /* Center container */
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  overflow: hidden; /* Hide scrollbars from container */
+  background-color: #f9f9f9; /* Light background for chat */
+}
+
+.messages-area {
+  flex-grow: 1; /* Take up available space */
+  overflow-y: auto; /* Enable vertical scrolling */
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem; /* Space between messages */
+}
+
+.message {
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  max-width: 80%;
+  word-wrap: break-word; /* Wrap long words */
+}
+
+.message pre { /* Style the pre tag for better formatting */
+  white-space: pre-wrap; /* Wrap text and preserve line breaks */
+  font-family: inherit; /* Use the same font as the rest of the app */
+  margin: 0;
+}
+
+
+.message.user {
+  background-color: #007bff; /* Blue for user messages */
+  color: white;
+  align-self: flex-end; /* Align user messages to the right */
+  margin-left: auto; /* Push to the right */
+}
+
+.message.bot {
+  background-color: #e9ecef; /* Light grey for bot messages */
+  color: #333;
+  align-self: flex-start; /* Align bot messages to the left */
+  margin-right: auto; /* Push to the left */
+}
+
+.message.bot.error {
+  background-color: #f8d7da; /* Light red for errors */
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.message.bot.loading span {
+  display: inline-block;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+
+.input-area {
+  display: flex;
+  padding: 0.75rem;
+  border-top: 1px solid #ccc;
+  background-color: #fff; /* White background for input */
+}
+
+.input-area input {
+  flex-grow: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-right: 0.5rem;
+}
+
+.input-area button {
+  padding: 0.5rem 1rem;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.input-area button:hover {
+  background-color: #0056b3;
+}
+
+.input-area button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
