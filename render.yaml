@@ -6,9 +6,9 @@ services:
     branch: main
     rootDir: web
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: NODE_ENV=production npx vite preview --host --port $PORT
     envVars:
       - key: PORT
-        value: 10000
-      - key: VITE_PORT
-        value: 10000
+        sync: false
+      - key: NODE_ENV
+        value: production
