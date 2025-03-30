@@ -75,6 +75,7 @@
   white-space: pre-wrap; /* Wrap text and preserve line breaks */
   font-family: inherit; /* Use the same font as the rest of the app */
   margin: 0;
+  text-align: left; /* Explicitly align text to the left */
 }
 
 
