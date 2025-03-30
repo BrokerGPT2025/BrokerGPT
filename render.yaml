@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: BrokerGPT
+    region: oregon
+    repo: https://github.com/BrokerGPT2025/BrokerGPT
+    branch: main
+    rootDir: web
+    buildCommand: npm install && npm run build
+    startCommand: npm start
