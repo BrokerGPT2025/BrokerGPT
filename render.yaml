@@ -5,7 +5,7 @@ services:
     repo: https://github.com/BrokerGPT2025/BrokerGPT
     branch: main
     rootDir: web
-    buildCommand: cd web && npm install && npm run build
+    buildCommand: cd web && npm install && npm run build && cp package.json /opt/render/project/src/
     startCommand: cd web && npm start
     envVars:
       - key: PORT
