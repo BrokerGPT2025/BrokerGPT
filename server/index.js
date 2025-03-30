@@ -139,27 +139,75 @@ app.post('/api/search', async (req, res) => {
        return res.status(500).json({ message: 'Server configuration error: LLM not available.' });
     }
 
-    // Define the prompt for Gemini
-    const prompt = `
-      Analyze the following text scraped from websites related to the search query "${query}".
-      Extract key business profile information for insurance prospecting.
-      Format the output STRICTLY as a valid JSON object with the following fields (use "Not Found" if information is missing). Ensure all key-value pairs are correctly separated by commas:
-      - companyName: string
-      - websiteUrl: string (the primary website if multiple are mentioned)
-      - primaryAddress: string (Street, City, Province/State, Postal Code)
-      - mainPhoneNumber: string
-      - keyContacts: array of objects [{ name: string, title: string }] (if available)
-      - businessDescription: string (brief summary of what the company does)
+    // --- 6. Determine Prompt based on Query Prefix ---
+    let prompt;
+    let actualQuery = query; // Use original query by default
+    const profileRegex = /^Profile:\s*/i; // Regex: Start, "Profile:", optional whitespace, case-insensitive
 
-      Scraped Text:
-      ---
-      ${combinedText.substring(0, 100000)}
-      ---
-      VALID JSON Output ONLY:
-    `; // Limit input length if necessary for the model
+    const match = query.match(profileRegex);
+    if (match) {
+      // Prefix found, extract the actual query part
+      actualQuery = query.substring(match[0].length).trim(); // Get query after the matched prefix part
+      console.log(`*** DEBUG: Entering PROFILE mode via REGEX for query: "${query}" ***`); // UPDATED DEBUG LOG
+      console.log(`Profile mode detected. Actual query: "${actualQuery}"`);
+      // Define the DETAILED PROFILE prompt
+      prompt = `
+        Analyze the following text scraped from websites related to the search query "${actualQuery}".
+        Extract detailed business profile information for insurance prospecting purposes.
+        Format the output STRICTLY as a valid JSON object. You MUST include ALL of the following fields in your response.
+        Use the JSON value \`null\` (NOT the string "null" or "Not Found") if a value cannot be determined for a specific field.
+        Ensure all key-value pairs are correctly formatted and separated by commas:
 
+        {
+          "companyName": string,
+          "primaryWebsite": string,
+          "namedInsured": string,
+          "primaryAddress": string, // Street, City, Province/State, Postal Code
+          "primaryEmailContact": string,
+          "principalOwners": [string],
+          "operations": [string], // List of business activities
+          "requiresProfessionalLicensing": boolean,
+          "subsidiariesOrDBA": [string],
+          "estimatedAnnualRevenue": string,
+          "estimated5YearLossHistory": string, // Summarize known claims, lawsuits, or public losses
+          "estimatedAnnualPayroll": string,
+          "yearsInBusiness": number,
+          "numberOfEmployees": number,
+          "keyContacts": [ { "name": string, "title": string } ],
+          "businessDescription": string,
+          "importantNewsArticles": [string], // URLs or headlines with source
+          "googleStreetView": string, // URL to Google Street View of primary address
+          "linkedinProfile": string,
+          "facebookProfile": string,
+          "xProfile": string // Formerly Twitter
+        }
+
+        Scraped Text:
+        ---
+        ${combinedText.substring(0, 100000)}
+        ---
+
+        VALID JSON Output ONLY:
+      `;
+    } else {
+      // Use the DEFAULT prompt (handles other prefixes like "Docs:" implicitly for now)
+      console.log(`Default mode detected. Query: "${actualQuery}"`);
+      prompt = `
+        Analyze the following text scraped from websites, chat logs, and saved documents related to the search query "${actualQuery}".
+        Provide a concise summary of the key information found about the subject.
+
+        Scraped Text:
+        ---
+        ${combinedText.substring(0, 100000)}
+        ---
+
+        Summary:
+      `;
+    }
+
+    // --- 7. Process with Gemini ---
     try {
-      console.log("Sending request to Gemini...");
+      console.log("Sending request to Gemini with selected prompt...");
       const result = await geminiModel.generateContent(prompt);
       const response = result.response;
       const profileText = response.text();

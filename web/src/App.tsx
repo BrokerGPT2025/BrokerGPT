@@ -49,8 +49,11 @@ function App() {
     setIsLoading(true); // Show loading indicator
 
     try {
-      // --- Call Deployed Backend API ---
-      const backendUrl = 'https://brokergpt-back-end.onrender.com/api/search'; // Use deployed backend URL
+      // --- Call Backend API using Environment Variable ---
+      const backendUrl = import.meta.env.VITE_BACKEND_API_URL;
+      if (!backendUrl) {
+        throw new Error("Backend API URL is not configured. Set VITE_BACKEND_API_URL environment variable.");
+      }
       const response = await fetch(backendUrl, {
         method: 'POST',
         headers: {
@@ -72,22 +75,43 @@ function App() {
 
       if (data.businessProfile) {
         if (typeof data.businessProfile === 'object' && !data.businessProfile.parseError) {
-          // Format the JSON profile for display
-          // You might want to make this prettier later
+          // Format the detailed JSON profile for display
           botContent = `Business Profile for "${data.searchQuery}":\n\n`;
-          botContent += `Name: ${data.businessProfile.companyName || 'Not Found'}\n`;
-          botContent += `Website: ${data.businessProfile.websiteUrl || 'Not Found'}\n`;
-          botContent += `Address: ${data.businessProfile.primaryAddress || 'Not Found'}\n`;
-          botContent += `Phone: ${data.businessProfile.mainPhoneNumber || 'Not Found'}\n`;
-          botContent += `Description: ${data.businessProfile.businessDescription || 'Not Found'}\n`;
-          if (data.businessProfile.keyContacts && data.businessProfile.keyContacts.length > 0) {
-            botContent += `Contacts:\n`;
-            data.businessProfile.keyContacts.forEach((contact: { name: string, title: string }) => {
+          const profile = data.businessProfile; // Alias for easier access
+
+          botContent += `Company Name: ${profile.companyName || 'Not Found'}\n`;
+          botContent += `Primary Website: ${profile.primaryWebsite || 'Not Found'}\n`;
+          botContent += `Named Insured: ${profile.namedInsured || 'Not Found'}\n`;
+          botContent += `Primary Address: ${profile.primaryAddress || 'Not Found'}\n`;
+          botContent += `Primary Email: ${profile.primaryEmailContact || 'Not Found'}\n`;
+          botContent += `Principal Owners: ${(profile.principalOwners && profile.principalOwners.length > 0) ? profile.principalOwners.join(', ') : 'Not Found'}\n`;
+          botContent += `Operations: ${(profile.operations && profile.operations.length > 0) ? profile.operations.join(', ') : 'Not Found'}\n`;
+          botContent += `Requires Licensing: ${profile.requiresProfessionalLicensing === null ? 'Not Found' : profile.requiresProfessionalLicensing}\n`; // Handle boolean/null
+          botContent += `Subsidiaries/DBA: ${(profile.subsidiariesOrDBA && profile.subsidiariesOrDBA.length > 0) ? profile.subsidiariesOrDBA.join(', ') : 'Not Found'}\n`;
+          botContent += `Est. Annual Revenue: ${profile.estimatedAnnualRevenue || 'Not Found'}\n`;
+          botContent += `Est. 5yr Loss History: ${profile.estimated5YearLossHistory || 'Not Found'}\n`;
+          botContent += `Est. Annual Payroll: ${profile.estimatedAnnualPayroll || 'Not Found'}\n`;
+          botContent += `Years in Business: ${profile.yearsInBusiness === null ? 'Not Found' : profile.yearsInBusiness}\n`; // Handle number/null
+          botContent += `Number of Employees: ${profile.numberOfEmployees === null ? 'Not Found' : profile.numberOfEmployees}\n`; // Handle number/null
+
+          if (profile.keyContacts && profile.keyContacts.length > 0) {
+            botContent += `Key Contacts:\n`;
+            profile.keyContacts.forEach((contact: { name: string, title: string }) => {
               botContent += `  - ${contact.name || 'N/A'} (${contact.title || 'N/A'})\n`;
             });
           } else {
-             botContent += `Contacts: Not Found\n`;
+             botContent += `Key Contacts: Not Found\n`;
           }
+
+          botContent += `Business Description: ${profile.businessDescription || 'Not Found'}\n`;
+          botContent += `Important News: ${(profile.importantNewsArticles && profile.importantNewsArticles.length > 0) ? profile.importantNewsArticles.join(', ') : 'Not Found'}\n`;
+          botContent += `Google Street View: ${profile.googleStreetView || 'Not Found'}\n`;
+          botContent += `LinkedIn Profile: ${profile.linkedinProfile || 'Not Found'}\n`;
+          botContent += `Facebook Profile: ${profile.facebookProfile || 'Not Found'}\n`;
+          botContent += `X (Twitter) Profile: ${profile.xProfile || 'Not Found'}\n`;
+
+
+          // Add sources if available
           if (data.scrapedSources && data.scrapedSources.length > 0) {
              botContent += `\nSources:\n${data.scrapedSources.join('\n')}`;
           }
