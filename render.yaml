@@ -8,11 +8,11 @@ services:
     rootDir: web # Root directory for build commands
     buildCommand: "npm install && npm run build" # Command to build the site
     publishDir: web/dist # Directory containing the built static files
-    # Optional: Add rewrite rules for single-page applications (SPA)
-    # routes:
-    #   - type: rewrite
-    #     source: /*
-    #     destination: /index.html
+    # Add rewrite rules for single-page applications (SPA)
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     # Optional: Set up environment variables (e.g., for Supabase)
     # It's recommended to use Render's Environment Groups or Secrets for sensitive keys
     # envVars:
