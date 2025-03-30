@@ -5,8 +5,8 @@ services:
     repo: https://github.com/BrokerGPT2025/BrokerGPT
     branch: main
     rootDir: web
-    buildCommand: cd "$RENDER_PROJECT_DIR/web" && ls -la && pwd && npm install && ls -la node_modules && npm install vite --save-dev && ls -la node_modules/vite && vite build
-    startCommand: cd "$RENDER_PROJECT_DIR/web" && npx serve -s dist --listen $PORT
+    buildCommand: cd "$RENDER_PROJECT_DIR/web" && npm install && npm run build
+    startCommand: cd "$RENDER_PROJECT_DIR/web" && npm start
     envVars:
       - key: PORT
         sync: false
