@@ -8,13 +8,13 @@ interface Message {
   isError?: boolean; // Optional flag for error messages
 }
 
-// Define structure for Serper organic results (adjust as needed based on actual API response)
-interface OrganicResult {
-  title: string;
-  link: string;
-  snippet: string;
-  position: number;
-}
+// Unused interface removed:
+// interface OrganicResult {
+//   title: string;
+//   link: string;
+//   snippet: string;
+//   position: number;
+// }
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
