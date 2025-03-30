@@ -5,8 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "build": "vite build",
-    "start": "vite preview --host",
+    "build": "npx vite build",
+    "start": "npx serve -s dist",
     "dev": "vite"
   },
   "keywords": [],
