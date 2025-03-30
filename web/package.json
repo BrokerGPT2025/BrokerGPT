@@ -5,8 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "build": "npx vite build",
-    "start": "npx serve -s dist",
+    "build": "vite build",
+    "start": "serve -s dist",
     "dev": "vite"
   },
   "keywords": [],
@@ -19,6 +19,6 @@
   "dependencies": {
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "serve": "^14.2.1"
+    "serve": "^14.2.4"
   }
 }
