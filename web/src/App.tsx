@@ -1,4 +1,4 @@
-import { useState, FormEvent, ChangeEvent, useRef, useEffect } from 'react';
+import React, { useState, FormEvent, ChangeEvent, useRef, useEffect } from 'react';
 import './App.css';
 
 // Define message structure
@@ -8,19 +8,35 @@ interface Message {
   isError?: boolean; // Optional flag for error messages
 }
 
-// Unused interface removed:
-// interface OrganicResult {
-//   title: string;
-//   link: string;
-//   snippet: string;
-//   position: number;
-// }
+// Helper function to find and linkify URLs in text
+// Returns an array of strings and React JSX Elements
+const linkifyUrls = (text: string): (string | React.JSX.Element)[] => { // Explicitly use React.JSX.Element
+  const urlRegex = /(https?:\/\/[^\s"'>]+)/g; // Regex to find URLs
+  const parts = text.split(urlRegex); // Split text by URLs
 
+  return parts.map((part, index) => {
+    // Check if the current part is a URL
+    if (part && part.match(urlRegex)) {
+      // Ensure URL starts with http:// or https:// for safety
+      const safeUrl = part.startsWith('http://') || part.startsWith('https://') ? part : `http://${part}`;
+      // Return an anchor tag for the URL
+      return (
+        <a key={index} href={safeUrl} target="_blank" rel="noopener noreferrer">
+          {part}
+        </a>
+      );
+    }
+    // Otherwise, return the text part as is
+    return part;
+  });
+};
+
+// Main App Component
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null); // Ref for scrolling
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Function to scroll to the bottom of the messages
   const scrollToBottom = () => {
@@ -37,16 +53,14 @@ function App() {
 
   // Handle sending a message
   const handleSendMessage = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); // Prevent default form submission
+    event.preventDefault();
     const userQuery = inputValue.trim();
+    if (!userQuery) return;
 
-    if (!userQuery) return; // Don't send empty messages
-
-    // Add user message to state
     const newUserMessage: Message = { sender: 'user', content: userQuery };
     setMessages((prevMessages) => [...prevMessages, newUserMessage]);
-    setInputValue(''); // Clear input field
-    setIsLoading(true); // Show loading indicator
+    setInputValue('');
+    setIsLoading(true);
 
     try {
       // --- Call Backend API using Environment Variable ---
@@ -56,83 +70,68 @@ function App() {
       }
       const response = await fetch(backendUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: userQuery }),
       });
 
       if (!response.ok) {
-        // Handle HTTP errors (e.g., 4xx, 5xx)
         const errorData = await response.json();
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json(); // Should contain { searchQuery, businessProfile, scrapedSources }
+      const data = await response.json();
+      let botContent = "Could not generate a response.";
 
       // --- Process and Display Gemini Response ---
-      let botContent = "Could not generate a response."; // Default message
-
       if (data.businessProfile) {
         // Check if it's the summary response structure
         if (data.businessProfile.isSummary && data.businessProfile.rawSummary) {
           console.log("Frontend received summary response");
-          botContent = data.businessProfile.rawSummary; // Display the raw summary text
+          botContent = data.businessProfile.rawSummary;
 
         // Check if it's the detailed profile structure (and not a parse error)
         } else if (typeof data.businessProfile === 'object' && !data.businessProfile.parseError && !data.businessProfile.isSummary) {
           console.log("Frontend received detailed profile response");
+          const profile = data.businessProfile;
           // Format the detailed JSON profile for display
-          botContent = `Business Profile for "${data.searchQuery}":\n\n`;
-          const profile = data.businessProfile; // Alias for easier access
-
-          botContent += `Company Name: ${profile.companyName || 'Not Found'}\n`;
-          botContent += `Primary Website: ${profile.primaryWebsite || 'Not Found'}\n`;
-          botContent += `Named Insured: ${profile.namedInsured || 'Not Found'}\n`;
-          botContent += `Primary Address: ${profile.primaryAddress || 'Not Found'}\n`;
-          botContent += `Primary Email: ${profile.primaryEmailContact || 'Not Found'}\n`;
-          botContent += `Principal Owners: ${(profile.principalOwners && profile.principalOwners.length > 0) ? profile.principalOwners.join(', ') : 'Not Found'}\n`;
-          botContent += `Operations: ${(profile.operations && profile.operations.length > 0) ? profile.operations.join(', ') : 'Not Found'}\n`;
-          botContent += `Requires Licensing: ${profile.requiresProfessionalLicensing === null ? 'Not Found' : profile.requiresProfessionalLicensing}\n`; // Handle boolean/null
-          botContent += `Subsidiaries/DBA: ${(profile.subsidiariesOrDBA && profile.subsidiariesOrDBA.length > 0) ? profile.subsidiariesOrDBA.join(', ') : 'Not Found'}\n`;
-          botContent += `Est. Annual Revenue: ${profile.estimatedAnnualRevenue || 'Not Found'}\n`;
-          botContent += `Est. 5yr Loss History: ${profile.estimated5YearLossHistory || 'Not Found'}\n`;
-          botContent += `Est. Annual Payroll: ${profile.estimatedAnnualPayroll || 'Not Found'}\n`;
-          botContent += `Years in Business: ${profile.yearsInBusiness === null ? 'Not Found' : profile.yearsInBusiness}\n`; // Handle number/null
-          botContent += `Number of Employees: ${profile.numberOfEmployees === null ? 'Not Found' : profile.numberOfEmployees}\n`; // Handle number/null
-
-          if (profile.keyContacts && profile.keyContacts.length > 0) {
-            botContent += `Key Contacts:\n`;
-            profile.keyContacts.forEach((contact: { name: string, title: string }) => {
-              botContent += `  - ${contact.name || 'N/A'} (${contact.title || 'N/A'})\n`;
-            });
-          } else {
-             botContent += `Key Contacts: Not Found\n`;
-          }
-
-          botContent += `Business Description: ${profile.businessDescription || 'Not Found'}\n`;
-          botContent += `Important News: ${(profile.importantNewsArticles && profile.importantNewsArticles.length > 0) ? profile.importantNewsArticles.join(', ') : 'Not Found'}\n`;
-          botContent += `Google Street View: ${profile.googleStreetView || 'Not Found'}\n`;
-          botContent += `LinkedIn Profile: ${profile.linkedinProfile || 'Not Found'}\n`;
-          botContent += `Facebook Profile: ${profile.facebookProfile || 'Not Found'}\n`;
-          botContent += `X (Twitter) Profile: ${profile.xProfile || 'Not Found'}\n`;
-
+          botContent = `Business Profile for "${data.searchQuery}":\n\n` +
+                       `Company Name: ${profile.companyName || 'Not Found'}\n` +
+                       `Primary Website: ${profile.primaryWebsite || 'Not Found'}\n` +
+                       `Named Insured: ${profile.namedInsured || 'Not Found'}\n` +
+                       `Primary Address: ${profile.primaryAddress || 'Not Found'}\n` +
+                       `Primary Email: ${profile.primaryEmailContact || 'Not Found'}\n` +
+                       `Principal Owners: ${(profile.principalOwners && profile.principalOwners.length > 0) ? profile.principalOwners.join(', ') : 'Not Found'}\n` +
+                       `Operations: ${(profile.operations && profile.operations.length > 0) ? profile.operations.join(', ') : 'Not Found'}\n` +
+                       `Requires Licensing: ${profile.requiresProfessionalLicensing === null ? 'Not Found' : profile.requiresProfessionalLicensing}\n` +
+                       `Subsidiaries/DBA: ${(profile.subsidiariesOrDBA && profile.subsidiariesOrDBA.length > 0) ? profile.subsidiariesOrDBA.join(', ') : 'Not Found'}\n` +
+                       `Est. Annual Revenue: ${profile.estimatedAnnualRevenue || 'Not Found'}\n` +
+                       `Est. 5yr Loss History: ${profile.estimated5YearLossHistory || 'Not Found'}\n` +
+                       `Est. Annual Payroll: ${profile.estimatedAnnualPayroll || 'Not Found'}\n` +
+                       `Years in Business: ${profile.yearsInBusiness === null ? 'Not Found' : profile.yearsInBusiness}\n` +
+                       `Number of Employees: ${profile.numberOfEmployees === null ? 'Not Found' : profile.numberOfEmployees}\n` +
+                       `Key Contacts:\n${(profile.keyContacts && profile.keyContacts.length > 0) ? profile.keyContacts.map((c: { name: string, title: string }) => `  - ${c.name || 'N/A'} (${c.title || 'N/A'})`).join('\n') : '  Not Found'}\n` +
+                       `Business Description: ${profile.businessDescription || 'Not Found'}\n` +
+                       `Important News: ${(profile.importantNewsArticles && profile.importantNewsArticles.length > 0) ? profile.importantNewsArticles.join(', ') : 'Not Found'}\n` +
+                       `Google Street View: ${profile.googleStreetView || 'Not Found'}\n` +
+                       `LinkedIn Profile: ${profile.linkedinProfile || 'Not Found'}\n` +
+                       `Facebook Profile: ${profile.facebookProfile || 'Not Found'}\n` +
+                       `X (Twitter) Profile: ${profile.xProfile || 'Not Found'}\n`;
 
           // Add sources if available
           if (data.scrapedSources && data.scrapedSources.length > 0) {
-             botContent += `\n\nSources:\n${data.scrapedSources.join('\n')}`; // Added newline for spacing
+             botContent += `\n\nSources:\n${data.scrapedSources.join('\n')}`;
           }
-
+        // Handle case where JSON parsing failed on backend (Profile mode only)
         } else if (data.businessProfile.rawResponse) {
-           // Handle case where JSON parsing failed on backend (Profile mode only)
            console.log("Frontend received profile parse error response");
            botContent = `LLM response could not be parsed as JSON:\n\n${data.businessProfile.rawResponse}`;
+        // Handle other unexpected businessProfile content
         } else {
-           // Handle other unexpected businessProfile content
            console.log("Frontend received unexpected profile data format", data.businessProfile);
            botContent = `Received unexpected profile data format.`;
         }
-      } else if (data.message) { // Handle cases where backend returns a simple message (e.g., no usable content scraped)
+      // Handle cases where backend returns a simple message (e.g., no usable content scraped)
+      } else if (data.message) {
         console.log("Frontend received simple message response");
         botContent = data.message;
       }
@@ -142,7 +141,6 @@ function App() {
 
     } catch (error: any) {
       console.error("Error fetching search results:", error);
-      // Add error message to chat
       const newErrorMessage: Message = {
         sender: 'bot',
         content: `Error: ${error.message || 'Failed to get results'}`,
@@ -150,17 +148,18 @@ function App() {
       };
       setMessages((prevMessages) => [...prevMessages, newErrorMessage]);
     } finally {
-      setIsLoading(false); // Hide loading indicator
+      setIsLoading(false);
     }
-  };
+  }; // End of handleSendMessage
 
+  // Component Render
   return (
     <div className="chat-container">
       <div className="messages-area">
         {messages.map((msg, index) => (
           <div key={index} className={`message ${msg.sender} ${msg.isError ? 'error' : ''}`}>
-            {/* Use pre-wrap to preserve line breaks from the formatted response */}
-            <pre>{msg.content}</pre>
+            {/* Use pre-wrap for spacing, but process content for links */}
+            <pre>{linkifyUrls(msg.content)}</pre>
           </div>
         ))}
         {/* Loading indicator */}
@@ -178,7 +177,7 @@ function App() {
           value={inputValue}
           onChange={handleInputChange}
           placeholder="Ask me to search..."
-          disabled={isLoading} // Disable input while loading
+          disabled={isLoading}
         />
         <button type="submit" disabled={isLoading}>
           Send
@@ -186,6 +185,7 @@ function App() {
       </form>
     </div>
   );
-}
+} // End of App component
 
+// Export statement at the end, top level
 export default App;
