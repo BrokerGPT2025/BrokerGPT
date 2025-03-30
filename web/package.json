@@ -2,10 +2,11 @@
   "name": "brokergpt-web",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "build": "echo \"Building...\"",
-    "start": "vite",
+    "build": "vite build",
+    "start": "vite preview --host",
     "dev": "vite"
   },
   "keywords": [],
