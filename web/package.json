@@ -5,9 +5,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "build": "vite build",
-    "start": "serve -s dist",
-    "dev": "vite"
+    "build": "npx vite build",
+    "start": "npx serve -s dist",
+    "dev": "npx vite"
   },
   "keywords": [],
   "author": "",
