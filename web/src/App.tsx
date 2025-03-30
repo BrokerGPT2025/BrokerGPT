@@ -71,10 +71,17 @@ function App() {
       const data = await response.json(); // Should contain { searchQuery, businessProfile, scrapedSources }
 
       // --- Process and Display Gemini Response ---
-      let botContent = "Could not generate business profile."; // Default message
+      let botContent = "Could not generate a response."; // Default message
 
       if (data.businessProfile) {
-        if (typeof data.businessProfile === 'object' && !data.businessProfile.parseError) {
+        // Check if it's the summary response structure
+        if (data.businessProfile.isSummary && data.businessProfile.rawSummary) {
+          console.log("Frontend received summary response");
+          botContent = data.businessProfile.rawSummary; // Display the raw summary text
+
+        // Check if it's the detailed profile structure (and not a parse error)
+        } else if (typeof data.businessProfile === 'object' && !data.businessProfile.parseError && !data.businessProfile.isSummary) {
+          console.log("Frontend received detailed profile response");
           // Format the detailed JSON profile for display
           botContent = `Business Profile for "${data.searchQuery}":\n\n`;
           const profile = data.businessProfile; // Alias for easier access
@@ -113,17 +120,20 @@ function App() {
 
           // Add sources if available
           if (data.scrapedSources && data.scrapedSources.length > 0) {
-             botContent += `\nSources:\n${data.scrapedSources.join('\n')}`;
+             botContent += `\n\nSources:\n${data.scrapedSources.join('\n')}`; // Added newline for spacing
           }
 
         } else if (data.businessProfile.rawResponse) {
-           // Handle case where JSON parsing failed on backend
+           // Handle case where JSON parsing failed on backend (Profile mode only)
+           console.log("Frontend received profile parse error response");
            botContent = `LLM response could not be parsed as JSON:\n\n${data.businessProfile.rawResponse}`;
         } else {
            // Handle other unexpected businessProfile content
+           console.log("Frontend received unexpected profile data format", data.businessProfile);
            botContent = `Received unexpected profile data format.`;
         }
-      } else if (data.message) { // Handle cases where backend returns a message (e.g., no usable content scraped)
+      } else if (data.message) { // Handle cases where backend returns a simple message (e.g., no usable content scraped)
+        console.log("Frontend received simple message response");
         botContent = data.message;
       }
 

@@ -29,12 +29,12 @@ let genAI;
 let geminiModel;
 if (GOOGLE_API_KEY) {
   genAI = new GoogleGenerativeAI(GOOGLE_API_KEY);
-  // Initialize model with JSON mode enabled
+  // Initialize model WITHOUT default JSON mode
   geminiModel = genAI.getGenerativeModel({
-    model: "gemini-1.5-flash-latest",
-    generationConfig: { responseMimeType: "application/json" } // Enable JSON Mode
+    model: "gemini-1.5-flash-latest"
+    // generationConfig: { responseMimeType: "application/json" } // JSON Mode applied conditionally later
   });
-  console.log("Google AI Client Initialized with model 'gemini-1.5-flash-latest' in JSON Mode.");
+  console.log("Google AI Client Initialized with model 'gemini-1.5-flash-latest'.");
 } else {
   console.error("Google AI Client could not be initialized due to missing API key.");
 }
@@ -207,28 +207,57 @@ app.post('/api/search', async (req, res) => {
 
     // --- 7. Process with Gemini ---
     try {
+      let result;
       console.log("Sending request to Gemini with selected prompt...");
-      const result = await geminiModel.generateContent(prompt);
+      if (match) {
+        // Profile mode: Call with JSON generation config
+        console.log("...using JSON mode generation config.");
+        result = await geminiModel.generateContent(
+          prompt,
+          { responseMimeType: "application/json" } // Apply JSON mode here
+        );
+      } else {
+        // Default mode: Call without specific generation config
+        console.log("...using default text generation config.");
+        result = await geminiModel.generateContent(prompt);
+      }
       const response = result.response;
       const profileText = response.text();
       console.log("Gemini response received.");
 
-      // With JSON mode, the response.text() should already be valid JSON string.
-      // No need for complex cleaning/fixing logic.
-      let profileJson = {};
-      try {
-        profileJson = JSON.parse(profileText);
-        console.log("Successfully parsed Gemini JSON response.");
-      } catch (parseError) {
-         console.error("Failed to parse JSON response from Gemini even with JSON mode:", parseError);
-         console.log("Raw Gemini response:", profileText);
-         // Return the raw text if JSON parsing fails (should be less likely now)
-         profileJson = { rawResponse: profileText, parseError: "Failed to parse response as JSON." };
+      let profileJson = {}; // Initialize response data object
+
+      if (match) { // Check if we were in Profile mode (match is from the regex check earlier)
+        // Clean potential markdown fences from the response
+        let cleanedText = profileText.trim();
+        if (cleanedText.startsWith("```json")) {
+          cleanedText = cleanedText.substring(7); // Remove ```json
+        }
+        if (cleanedText.endsWith("```")) {
+          cleanedText = cleanedText.substring(0, cleanedText.length - 3);
+        }
+        cleanedText = cleanedText.trim(); // Trim again after removing fences
+
+        // Only attempt JSON parse in Profile mode
+        try {
+          profileJson = JSON.parse(cleanedText); // Parse the cleaned text
+          console.log("Successfully parsed Gemini JSON response for Profile mode.");
+        } catch (parseError) {
+          console.error("Failed to parse JSON response from Gemini even after cleaning:", parseError); // Updated error message
+          console.log("Raw Gemini response:", profileText);
+          // Keep structure consistent for frontend error handling
+          profileJson = { rawResponse: profileText, parseError: "Failed to parse response as JSON." };
+        }
+      } else {
+        // In Default mode, return the raw text within the expected structure
+        console.log("Default mode response received (plain text).");
+        // Wrap the raw summary text so frontend knows it's not the detailed profile
+        profileJson = { rawSummary: profileText, isSummary: true };
       }
 
       res.json({
           searchQuery: query,
-          businessProfile: profileJson, // Send the structured profile
+          businessProfile: profileJson, // Send the structured profile (or summary wrapper)
           scrapedSources: scrapedResults.map(r => r.url) // Include sources used
       });
 
