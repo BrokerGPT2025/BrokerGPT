@@ -1,0 +1,22 @@
+# render.yaml
+# Configuration for deploying the Vite static site on Render.com
+
+services:
+  - type: web # Static site service type
+    name: broker-gpt-web # Name of the service on Render
+    env: static # Environment type for static sites
+    rootDir: web # Root directory for build commands
+    buildCommand: "npm install && npm run build" # Command to build the site
+    publishDir: web/dist # Directory containing the built static files
+    # Optional: Add rewrite rules for single-page applications (SPA)
+    # routes:
+    #   - type: rewrite
+    #     source: /*
+    #     destination: /index.html
+    # Optional: Set up environment variables (e.g., for Supabase)
+    # It's recommended to use Render's Environment Groups or Secrets for sensitive keys
+    # envVars:
+    #   - key: VITE_SUPABASE_URL # Ensure this matches the key used in your code
+    #     fromGroup: supabase-credentials # Example: Name of an Environment Group in Render
+    #   - key: VITE_SUPABASE_ANON_KEY # Ensure this matches the key used in your code
+    #     fromGroup: supabase-credentials # Example: Name of an Environment Group in Render
