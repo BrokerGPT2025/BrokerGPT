@@ -6,4 +6,9 @@ services:
     branch: main
     rootDir: web
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: cd web && npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: VITE_PORT
+        value: 10000
