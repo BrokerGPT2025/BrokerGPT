@@ -1,13 +1,13 @@
 #root {
-  max-width: 1280px;
+  /* max-width: 1280px; */ /* Let app-wrapper control width */
   margin: 0 auto;
-  padding: 2rem;
+  /* padding: 2rem; */ /* REMOVED - Interfering with full height layout */
   text-align: center;
 }
 
 .logo {
-  height: 6em;
-  padding: 1.5em;
+  /* height: 6em; */ /* REMOVED - Let container set size */
+  /* padding: 1.5em; */ /* REMOVED - Interfering with layout */
   will-change: filter;
   transition: filter 300ms;
 }
@@ -143,3 +143,314 @@
   background-color: #cccccc;
   cursor: not-allowed;
 }
+
+/* --- New Layout Styles --- */
+
+/* Main wrapper for the entire app */
+.app-wrapper {
+  display: flex;
+  width: 100vw; /* Ensure wrapper takes full viewport width */
+  height: 100vh;
+  overflow: hidden; /* Prevent double scrollbars */
+  background-color: var(--theme--background, #fff); /* Default background */
+  color: var(--theme--text, #000); /* Default text color */
+  transition: padding-left 0.3s ease; /* Animation for sidebar toggle */
+}
+
+/* Sidebar Styles (Desktop) */
+.left-sidebar { /* Renamed from app-sidebar to match Webflow */
+  /* Dimensions & Basic Styling */
+  width: 220px; /* Width from Webflow */
+  min-width: 220px; /* Prevent shrinking */
+  height: 100vh;
+  /* padding-top: 3rem; */ /* REMOVED - Now handled by internal containers */
+  border-right: 1px solid var(--swatch--dark-faded, #ccc); /* From Webflow */
+  background-color: var(--theme--background, #fff);
+  overflow-y: auto; /* Allow sidebar scrolling if content overflows */
+  transition: min-width 0.3s ease, width 0.3s ease, padding 0.3s ease, opacity 0.3s ease; /* Animation */
+  z-index: 10; /* Ensure sidebar is above content */
+  display: flex; /* Use flex for internal layout */
+  flex-direction: column; /* Stack items vertically */
+}
+
+/* NEW: Container for the toggle icon inside the sidebar */
+.sidebar-toggle-container {
+  width: 100%; /* Take full width */
+  padding: 1rem 1rem 0; /* Padding around the icon */
+  margin-bottom: 1rem; /* Space below toggle */
+  display: flex;
+  justify-content: flex-end; /* Align icon to the right */
+  box-sizing: border-box; /* Include padding in width calculation */
+  flex-shrink: 0; /* Prevent shrinking */
+}
+/* Adjustments for the icon itself within the toggle container */
+.sidebar-toggle-container .sidebar-icon {
+  margin-right: 0; /* Remove default margin */
+  /* Add hover/focus styles if desired */
+}
+
+
+/* Sidebar content wrapper */
+.sidebar-wrapper {
+  /* From Webflow */
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  width: 100%; /* Take full width of parent */
+  /* height: 100%; */ /* Let flexbox handle height */
+  flex-grow: 1; /* Allow wrapper to grow */
+  padding-top: 0; /* Reset padding */
+  position: relative;
+  overflow: hidden; /* Hide internal overflow if needed */
+}
+
+/* Inner container for sidebar items */
+.sidebar-container {
+  /* From Webflow */
+  z-index: 2;
+  width: 182px; /* Specific width from Webflow */
+  min-width: 182px;
+  position: relative;
+  margin: 0 auto; /* Center container */
+  padding-top: 1rem; /* Reduced top padding */
+}
+
+
+/* Sidebar Item Styling */
+.sidebar-item {
+  /* From Webflow */
+  width: 180px; /* Match container width? */
+  margin-bottom: 2rem; /* Spacing between items */
+}
+.sidebar-item.third {
+  /* From Webflow */
+  border-bottom: 1px solid var(--swatch--dark-faded, #ccc);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem; /* Adjust spacing after border */
+}
+
+/* Sidebar Link Styling */
+.nav-link-block {
+  /* From Webflow */
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit; /* Inherit text color */
+  padding: 0.5rem 0; /* Add some vertical padding */
+  transition: color 0.2s ease;
+}
+.nav-link-block:hover {
+  color: var(--swatch--brand, #80009b); /* Use brand color on hover */
+}
+.nav-link-block.w--current { /* Style for the active link */
+  font-weight: bold; /* Example active style */
+  color: var(--swatch--brand, #80009b);
+  /* Add other active styles if needed, e.g., background */
+}
+
+/* Sidebar Icon Container */
+.sidebar-icon {
+  /* From Webflow */
+  width: 30px;
+  height: 30px;
+  margin-right: 0.5rem; /* Space between icon and text */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sidebar Text */
+.nav-text {
+  /* From Webflow */
+  font-size: var(--size--875rem, 0.875rem); /* 14px */
+  padding-left: .3rem;
+}
+
+/* Sidebar Brand Area */
+.sidebar-brand-link {
+  display: block; /* Make link a block */
+  margin-bottom: 1rem; /* Reduced space below brand */
+  text-decoration: none;
+  flex-shrink: 0; /* Prevent shrinking */
+}
+.sidebar-brand-container {
+  /* From Webflow */
+  display: flex;
+  align-items: center; /* Center items vertically */
+  height: 60px; /* Fixed height */
+  padding-left: 1rem; /* Add some padding */
+  padding-right: 1rem;
+}
+.sidebar-encode-logo {
+  /* From Webflow */
+  width: 32px;
+  flex-shrink: 0;
+}
+.sidebar-brand-text {
+  /* From Webflow */
+  width: 130px;
+  margin-left: 5px;
+  flex-shrink: 0;
+  /* Ensure SVG inside scales */
+}
+.sidebar-brand-text svg {
+    width: 100%;
+    height: auto;
+    color: #c2c1c1; /* Set the desired fill color */
+    display: block;
+}
+
+
+/* Sidebar Closed State */
+.app-wrapper.sidebar-closed .left-sidebar {
+  width: 0;
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-right: none;
+}
+
+/* Main Content Area */
+.main-content-wrapper {
+  flex-grow: 1; /* Take remaining space */
+  height: 100vh;
+  display: flex;
+  width: 100%; /* Ensure it tries to take full width */
+  flex-direction: column;
+  overflow: hidden; /* Prevent content overflow issues */
+  position: relative; /* Needed for absolute positioning of mobile menu */
+}
+
+/* Mobile Navbar Styles */
+.mobile-navbar-container {
+  display: none; /* Hidden by default, shown via media query */
+  height: 80px; /* From Webflow */
+  padding: 0 5%; /* From Webflow .nav-group */
+  background-color: var(--theme--background, #fff);
+  border-bottom: 1px solid var(--swatch--dark-faded, #ccc);
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0; /* Prevent shrinking */
+  z-index: 100; /* Keep on top */
+}
+.mobile-navbar-container .brand-9 {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+.mobile-navbar-container .logo {
+  margin-right: 5px; /* Space between logo and text */
+  width: 32px; /* Explicitly set width for the logo container */
+  height: auto; /* Maintain aspect ratio */
+  display: flex; /* Ensure SVG scales correctly if needed */
+  align-items: center;
+}
+.mobile-navbar-container .logo svg { /* Target the SVG inside */
+    width: 100%;
+    height: auto;
+    display: block;
+}
+.mobile-navbar-container .w-nav-button {
+  /* Styles for the hamburger button */
+  cursor: pointer;
+  padding: 1rem; /* Make it easier to click */
+  display: flex; /* Use flex for centering icon */
+  align-items: center;
+  justify-content: center;
+}
+.mobile-navbar-container .w-icon-nav-menu {
+  /* Container for the icon if needed */
+}
+
+/* Mobile Menu Panel Styles */
+.nav-menu-7 { /* Mobile menu panel class from Webflow */
+  display: none; /* Hidden by default */
+  position: absolute;
+  top: 80px; /* Position below navbar */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(230, 230, 230, 0.95); /* Semi-transparent background */
+  z-index: 99;
+  padding: 2rem;
+  overflow-y: auto;
+  flex-direction: column;
+  gap: 1rem;
+}
+.app-wrapper.mobile-menu-active .nav-menu-7 {
+  display: flex; /* Show when active */
+}
+.mobile-menu-item {
+  /* From Webflow */
+  font-size: 1.3em;
+  color: #333;
+  text-decoration: none;
+  padding: 0.5rem 0;
+}
+
+
+/* Adjust Chat Container within new layout */
+.chat-container {
+  flex-grow: 1; /* Take remaining space in main content */
+  height: auto; /* Override previous fixed height */
+  max-height: calc(100vh - 80px); /* Adjust based on mobile nav height */
+  border: none; /* Remove border if desired */
+  border-radius: 0;
+  max-width: 100%; /* Allow full width within parent */
+  margin: 0; /* Remove auto margins */
+  background-color: #f9f9f9; /* Keep background */
+}
+
+/* Responsive Design */
+@media screen and (max-width: 991px) {
+  .left-sidebar {
+    display: none; /* Hide sidebar on mobile */
+  }
+  .mobile-navbar-container {
+    display: flex; /* Show mobile navbar */
+  }
+  .chat-container {
+     max-height: calc(100vh - 80px); /* Ensure chat fits below mobile nav */
+  }
+  /* Hide absolute positioned icons on mobile */
+  .sidebar-icon-absolute-wrapper {
+    display: none !important;
+  }
+}
+
+/* Positioning for the absolute "Open Sidebar" icon */
+.sidebar-icon-absolute-wrapper {
+  position: fixed; /* Or absolute relative to app-wrapper if preferred */
+  /* top: 3rem; */ /* REMOVED - Position near top edge */
+  top: 1rem; /* Adjust slightly from the very top */
+  left: 1rem; /* Position near the left edge */
+  z-index: 15; /* Ensure it's above other content but potentially below modals */
+  display: none; /* Hidden by default */
+  transition: opacity 0.3s ease;
+}
+
+/* Show the wrapper only when the sidebar is closed */
+.app-wrapper.sidebar-closed .sidebar-icon-absolute-wrapper {
+  display: block;
+}
+
+/* Style the SVG icon itself (using the class from the component) */
+.sidebar-icon-absolute {
+  /* Remove background/padding styles */
+  /* padding: 0.5rem; */
+  /* background: rgba(255, 255, 255, 0.8); */
+  /* border-radius: 4px; */
+  /* box-shadow: 0 2px 4px rgba(0,0,0,0.1); */
+
+  /* Ensure SVG size is controlled by the SVG attributes */
+  /* width: 30px; */ /* REMOVED */
+  /* height: 30px; */ /* REMOVED */
+}
+
+
+/* Further adjustments might be needed for padding/margins */
