@@ -1,4 +1,9 @@
 #root {
+  /* Define variables for input area styling */
+  --input-border-radius: 28px;
+  --input-height: 105px;
+  --input-shadow: 0 10px 15px -3px rgba(0, 0, 0, .1), 0 4px 6px -4px rgba(0, 0, 0, .1);
+
   /* max-width: 1280px; */ /* Let app-wrapper control width */
   margin: 0 auto;
   /* padding: 2rem; */ /* REMOVED - Interfering with full height layout */
@@ -114,7 +119,7 @@
 
 .input-area {
   position: absolute; /* Position absolutely */
-  bottom: 11rem; /* MODIFIED - Distance from bottom */
+  bottom: 10rem; /* MODIFIED - Distance from bottom */
   /* Adjust left/right to account for chat container's centering */
   left: 50%;
   transform: translateX(-50%);
@@ -124,25 +129,49 @@
 
   display: flex;
   padding: 0.75rem;
-  border-top: 1px solid #ccc;
+  border-top: none; /* Remove top border */
   background-color: #fff;
   flex-shrink: 0;
-  border-radius: 4px; /* Optional: Add radius to input area */
-  box-shadow: 0 -2px 5px rgba(0,0,0,0.05); /* Optional: Add shadow */
+  border-radius: var(--input-border-radius); /* Use variable */
+  box-shadow: var(--input-shadow); /* Use variable */
+  height: var(--input-height); /* Use variable */
+  align-items: center; /* Center items vertically */
+  padding: 0 1.5rem; /* Adjust padding for new height */
+}
+
+/* Adjust padding-bottom on messages-area to match input height + gap */
+.messages-area {
+  /* flex-grow: 1; */ /* REMOVED */
+  height: 85%; /* Set explicit height (adjust as needed) */
+  max-height: 85%; /* Ensure it doesn't exceed this */
+  overflow-y: auto; /* Enable vertical scrolling */
+  padding: 1rem;
+  /* padding-bottom: 6rem; */ /* REMOVED - Adjust based on input height */
+  padding-bottom: calc(var(--input-height) + 2rem); /* Input height + desired gap */
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .input-area input {
   flex-grow: 1;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 0.75rem 1rem; /* Increase padding */
+  border: none; /* Remove border */
+  border-radius: 0; /* Remove radius if needed */
   margin-right: 0.5rem;
+  background-color: transparent; /* Make input background transparent */
+  height: auto; /* Allow natural height */
+  font-size: 1rem; /* Adjust font size if needed */
 }
+.input-area input:focus {
+    outline: none; /* Remove focus outline */
+}
+
 
 .input-area button {
   padding: 0.5rem 1rem;
   border: none;
-  background-color: #007bff;
+  background-color: #007bff; /* Keep button style for now */
   color: white;
   border-radius: 4px;
   cursor: pointer;
