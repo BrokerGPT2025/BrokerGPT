@@ -46,55 +46,57 @@
 .chat-container {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 4rem); /* Adjust height as needed, leave space for padding */
-  max-width: 800px; /* Limit chat width */
-  margin: 0 auto; /* Center container */
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  overflow: hidden; /* Hide scrollbars from container */
-  background-color: #f9f9f9; /* Light background for chat */
+  width: 100%;
+  max-width: 770px;
+  margin: 0 auto;
+  overflow: hidden;
+  background-color: #f9f9f9;
+  position: relative; /* Added for absolute positioning of children */
+  flex-grow: 1; /* Ensure it takes space in main-content-wrapper */
+  height: 100%; /* Ensure it fills parent */
 }
 
 .messages-area {
-  flex-grow: 1; /* Take up available space */
+  flex-grow: 1; /* Let this grow to push input down conceptually */
   overflow-y: auto; /* Enable vertical scrolling */
   padding: 1rem;
+  padding-bottom: 6rem; /* ADDED - Space for the absolute input area */
   display: flex;
   flex-direction: column;
-  gap: 0.75rem; /* Space between messages */
+  gap: 0.75rem;
 }
 
 .message {
   padding: 0.75rem 1rem;
   border-radius: 10px;
   max-width: 80%;
-  word-wrap: break-word; /* Wrap long words */
+  word-wrap: break-word;
 }
 
-.message pre { /* Style the pre tag for better formatting */
-  white-space: pre-wrap; /* Wrap text and preserve line breaks */
-  font-family: inherit; /* Use the same font as the rest of the app */
+.message pre {
+  white-space: pre-wrap;
+  font-family: inherit;
   margin: 0;
-  text-align: left; /* Explicitly align text to the left */
+  text-align: left;
 }
 
 
 .message.user {
-  background-color: #007bff; /* Blue for user messages */
+  background-color: #007bff;
   color: white;
-  align-self: flex-end; /* Align user messages to the right */
-  margin-left: auto; /* Push to the right */
+  align-self: flex-end;
+  margin-left: auto;
 }
 
 .message.bot {
-  background-color: #e9ecef; /* Light grey for bot messages */
+  background-color: #e9ecef;
   color: #333;
-  align-self: flex-start; /* Align bot messages to the left */
-  margin-right: auto; /* Push to the left */
+  align-self: flex-start;
+  margin-right: auto;
 }
 
 .message.bot.error {
-  background-color: #f8d7da; /* Light red for errors */
+  background-color: #f8d7da;
   color: #721c24;
   border: 1px solid #f5c6cb;
 }
@@ -111,10 +113,22 @@
 
 
 .input-area {
+  position: absolute; /* Position absolutely */
+  bottom: 11rem; /* MODIFIED - Distance from bottom */
+  /* Adjust left/right to account for chat container's centering */
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 2rem); /* Match padding of messages-area */
+  max-width: 770px; /* Match chat container max-width */
+  box-sizing: border-box;
+
   display: flex;
   padding: 0.75rem;
   border-top: 1px solid #ccc;
-  background-color: #fff; /* White background for input */
+  background-color: #fff;
+  flex-shrink: 0;
+  border-radius: 4px; /* Optional: Add radius to input area */
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.05); /* Optional: Add shadow */
 }
 
 .input-area input {
@@ -146,164 +160,133 @@
 
 /* --- New Layout Styles --- */
 
-/* Main wrapper for the entire app */
 .app-wrapper {
   display: flex;
-  width: 100vw; /* Ensure wrapper takes full viewport width */
+  width: 100vw;
   height: 100vh;
-  overflow: hidden; /* Prevent double scrollbars */
-  background-color: var(--theme--background, #fff); /* Default background */
-  color: var(--theme--text, #000); /* Default text color */
-  transition: padding-left 0.3s ease; /* Animation for sidebar toggle */
-}
-
-/* Sidebar Styles (Desktop) */
-.left-sidebar { /* Renamed from app-sidebar to match Webflow */
-  /* Dimensions & Basic Styling */
-  width: 220px; /* Width from Webflow */
-  min-width: 220px; /* Prevent shrinking */
-  height: 100vh;
-  /* padding-top: 3rem; */ /* REMOVED - Now handled by internal containers */
-  border-right: 1px solid var(--swatch--dark-faded, #ccc); /* From Webflow */
+  overflow: hidden;
   background-color: var(--theme--background, #fff);
-  overflow-y: auto; /* Allow sidebar scrolling if content overflows */
-  transition: min-width 0.3s ease, width 0.3s ease, padding 0.3s ease, opacity 0.3s ease; /* Animation */
-  z-index: 10; /* Ensure sidebar is above content */
-  display: flex; /* Use flex for internal layout */
-  flex-direction: column; /* Stack items vertically */
+  color: var(--theme--text, #000);
+  transition: padding-left 0.3s ease;
 }
 
-/* NEW: Container for the toggle icon inside the sidebar */
-.sidebar-toggle-container {
-  width: 100%; /* Take full width */
-  padding: 1rem 1rem 0; /* Padding around the icon */
-  margin-bottom: 1rem; /* Space below toggle */
+.left-sidebar {
+  width: 220px;
+  min-width: 220px;
+  height: 100vh;
+  border-right: 1px solid var(--swatch--dark-faded, #ccc);
+  background-color: var(--theme--background, #fff);
+  overflow-y: auto;
+  transition: min-width 0.3s ease, width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+  z-index: 10;
   display: flex;
-  justify-content: flex-end; /* Align icon to the right */
-  box-sizing: border-box; /* Include padding in width calculation */
-  flex-shrink: 0; /* Prevent shrinking */
+  flex-direction: column;
 }
-/* Adjustments for the icon itself within the toggle container */
+
+.sidebar-toggle-container {
+  width: 100%;
+  padding: 1rem 1rem 0;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
 .sidebar-toggle-container .sidebar-icon {
-  margin-right: 0; /* Remove default margin */
-  /* Add hover/focus styles if desired */
+  margin-right: 0;
 }
 
-
-/* Sidebar content wrapper */
 .sidebar-wrapper {
-  /* From Webflow */
   z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: flex-start;
-  width: 100%; /* Take full width of parent */
-  /* height: 100%; */ /* Let flexbox handle height */
-  flex-grow: 1; /* Allow wrapper to grow */
-  padding-top: 0; /* Reset padding */
+  width: 100%;
+  flex-grow: 1;
+  padding-top: 0;
   position: relative;
-  overflow: hidden; /* Hide internal overflow if needed */
+  overflow: hidden;
 }
 
-/* Inner container for sidebar items */
 .sidebar-container {
-  /* From Webflow */
   z-index: 2;
-  width: 182px; /* Specific width from Webflow */
+  width: 182px;
   min-width: 182px;
   position: relative;
-  margin: 0 auto; /* Center container */
-  padding-top: 1rem; /* Reduced top padding */
+  margin: 0 auto;
+  padding-top: 1rem;
 }
 
-
-/* Sidebar Item Styling */
 .sidebar-item {
-  /* From Webflow */
-  width: 180px; /* Match container width? */
-  margin-bottom: 2rem; /* Spacing between items */
+  width: 180px;
+  margin-bottom: 2rem;
 }
 .sidebar-item.third {
-  /* From Webflow */
   border-bottom: 1px solid var(--swatch--dark-faded, #ccc);
   padding-bottom: 1rem;
-  margin-bottom: 1rem; /* Adjust spacing after border */
+  margin-bottom: 1rem;
 }
 
-/* Sidebar Link Styling */
 .nav-link-block {
-  /* From Webflow */
   display: flex;
   align-items: center;
   text-decoration: none;
-  color: inherit; /* Inherit text color */
-  padding: 0.5rem 0; /* Add some vertical padding */
+  color: inherit;
+  padding: 0.5rem 0;
   transition: color 0.2s ease;
 }
 .nav-link-block:hover {
-  color: var(--swatch--brand, #80009b); /* Use brand color on hover */
-}
-.nav-link-block.w--current { /* Style for the active link */
-  font-weight: bold; /* Example active style */
   color: var(--swatch--brand, #80009b);
-  /* Add other active styles if needed, e.g., background */
+}
+.nav-link-block.w--current {
+  font-weight: bold;
+  color: var(--swatch--brand, #80009b);
 }
 
-/* Sidebar Icon Container */
 .sidebar-icon {
-  /* From Webflow */
   width: 30px;
   height: 30px;
-  margin-right: 0.5rem; /* Space between icon and text */
+  margin-right: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-/* Sidebar Text */
 .nav-text {
-  /* From Webflow */
-  font-size: var(--size--875rem, 0.875rem); /* 14px */
+  font-size: var(--size--875rem, 0.875rem);
   padding-left: .3rem;
 }
 
-/* Sidebar Brand Area */
 .sidebar-brand-link {
-  display: block; /* Make link a block */
-  margin-bottom: 1rem; /* Reduced space below brand */
+  display: block;
+  margin-bottom: 1rem;
   text-decoration: none;
-  flex-shrink: 0; /* Prevent shrinking */
+  flex-shrink: 0;
 }
 .sidebar-brand-container {
-  /* From Webflow */
   display: flex;
-  align-items: center; /* Center items vertically */
-  height: 60px; /* Fixed height */
-  padding-left: 1rem; /* Add some padding */
+  align-items: center;
+  height: 60px;
+  padding-left: 1rem;
   padding-right: 1rem;
 }
 .sidebar-encode-logo {
-  /* From Webflow */
   width: 32px;
   flex-shrink: 0;
 }
 .sidebar-brand-text {
-  /* From Webflow */
   width: 130px;
   margin-left: 5px;
   flex-shrink: 0;
-  /* Ensure SVG inside scales */
 }
 .sidebar-brand-text svg {
     width: 100%;
     height: auto;
-    color: #c2c1c1; /* Set the desired fill color */
+    color: #c2c1c1;
     display: block;
 }
 
-
-/* Sidebar Closed State */
 .app-wrapper.sidebar-closed .left-sidebar {
   width: 0;
   min-width: 0;
@@ -314,28 +297,26 @@
   border-right: none;
 }
 
-/* Main Content Area */
 .main-content-wrapper {
-  flex-grow: 1; /* Take remaining space */
+  flex-grow: 1;
   height: 100vh;
   display: flex;
-  width: 100%; /* Ensure it tries to take full width */
+  width: 100%;
   flex-direction: column;
-  overflow: hidden; /* Prevent content overflow issues */
-  position: relative; /* Needed for absolute positioning of mobile menu */
+  overflow: hidden;
+  position: relative;
 }
 
-/* Mobile Navbar Styles */
 .mobile-navbar-container {
-  display: none; /* Hidden by default, shown via media query */
-  height: 80px; /* From Webflow */
-  padding: 0 5%; /* From Webflow .nav-group */
+  display: none;
+  height: 80px;
+  padding: 0 5%;
   background-color: var(--theme--background, #fff);
   border-bottom: 1px solid var(--swatch--dark-faded, #ccc);
   align-items: center;
   justify-content: space-between;
-  flex-shrink: 0; /* Prevent shrinking */
-  z-index: 100; /* Keep on top */
+  flex-shrink: 0;
+  z-index: 100;
 }
 .mobile-navbar-container .brand-9 {
   display: flex;
@@ -344,38 +325,35 @@
   color: inherit;
 }
 .mobile-navbar-container .logo {
-  margin-right: 5px; /* Space between logo and text */
-  width: 32px; /* Explicitly set width for the logo container */
-  height: auto; /* Maintain aspect ratio */
-  display: flex; /* Ensure SVG scales correctly if needed */
+  margin-right: 5px;
+  width: 32px;
+  height: auto;
+  display: flex;
   align-items: center;
 }
-.mobile-navbar-container .logo svg { /* Target the SVG inside */
+.mobile-navbar-container .logo svg {
     width: 100%;
     height: auto;
     display: block;
 }
 .mobile-navbar-container .w-nav-button {
-  /* Styles for the hamburger button */
   cursor: pointer;
-  padding: 1rem; /* Make it easier to click */
-  display: flex; /* Use flex for centering icon */
+  padding: 1rem;
+  display: flex;
   align-items: center;
   justify-content: center;
 }
 .mobile-navbar-container .w-icon-nav-menu {
-  /* Container for the icon if needed */
 }
 
-/* Mobile Menu Panel Styles */
-.nav-menu-7 { /* Mobile menu panel class from Webflow */
-  display: none; /* Hidden by default */
+.nav-menu-7 {
+  display: none;
   position: absolute;
-  top: 80px; /* Position below navbar */
+  top: 80px;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(230, 230, 230, 0.95); /* Semi-transparent background */
+  background-color: rgba(230, 230, 230, 0.95);
   z-index: 99;
   padding: 2rem;
   overflow-y: auto;
@@ -383,74 +361,60 @@
   gap: 1rem;
 }
 .app-wrapper.mobile-menu-active .nav-menu-7 {
-  display: flex; /* Show when active */
+  display: flex;
 }
 .mobile-menu-item {
-  /* From Webflow */
   font-size: 1.3em;
   color: #333;
   text-decoration: none;
   padding: 0.5rem 0;
 }
 
-
 /* Adjust Chat Container within new layout */
-.chat-container {
-  flex-grow: 1; /* Take remaining space in main content */
-  height: auto; /* Override previous fixed height */
-  max-height: calc(100vh - 80px); /* Adjust based on mobile nav height */
-  border: none; /* Remove border if desired */
+/* This rule might be redundant now */
+/* .chat-container {
+  flex-grow: 1;
+  height: 100%;
+  border: none;
   border-radius: 0;
-  max-width: 100%; /* Allow full width within parent */
-  margin: 0; /* Remove auto margins */
-  background-color: #f9f9f9; /* Keep background */
-}
+  max-width: 770px;
+  width: 100%;
+  margin: 0 auto;
+  background-color: #f9f9f9;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+} */
 
-/* Responsive Design */
 @media screen and (max-width: 991px) {
   .left-sidebar {
-    display: none; /* Hide sidebar on mobile */
+    display: none;
   }
   .mobile-navbar-container {
-    display: flex; /* Show mobile navbar */
+    display: flex;
   }
   .chat-container {
      max-height: calc(100vh - 80px); /* Ensure chat fits below mobile nav */
   }
-  /* Hide absolute positioned icons on mobile */
   .sidebar-icon-absolute-wrapper {
     display: none !important;
   }
 }
 
-/* Positioning for the absolute "Open Sidebar" icon */
 .sidebar-icon-absolute-wrapper {
-  position: fixed; /* Or absolute relative to app-wrapper if preferred */
-  /* top: 3rem; */ /* REMOVED - Position near top edge */
-  top: 1rem; /* Adjust slightly from the very top */
-  left: 1rem; /* Position near the left edge */
-  z-index: 15; /* Ensure it's above other content but potentially below modals */
-  display: none; /* Hidden by default */
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 15;
+  display: none;
   transition: opacity 0.3s ease;
 }
 
-/* Show the wrapper only when the sidebar is closed */
 .app-wrapper.sidebar-closed .sidebar-icon-absolute-wrapper {
   display: block;
 }
 
-/* Style the SVG icon itself (using the class from the component) */
 .sidebar-icon-absolute {
-  /* Remove background/padding styles */
-  /* padding: 0.5rem; */
-  /* background: rgba(255, 255, 255, 0.8); */
-  /* border-radius: 4px; */
-  /* box-shadow: 0 2px 4px rgba(0,0,0,0.1); */
-
-  /* Ensure SVG size is controlled by the SVG attributes */
-  /* width: 30px; */ /* REMOVED */
-  /* height: 30px; */ /* REMOVED */
 }
-
 
 /* Further adjustments might be needed for padding/margins */
