@@ -63,6 +63,7 @@ This document tracks current tasks, backlog, and sub-tasks for the Insurance Pro
 
 ## Discovered Tasks
 <!-- New tasks discovered during development will be added here -->
+- [x] Create and debug a style guide visualization page (styleguide.html / /styleguide route) - 2025-04-01
 
 ## Milestones
 - [ ] MVP Release: Basic functionality for all Phase 1 features

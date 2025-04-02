@@ -59,6 +59,7 @@ Global (or project level) rules are the best way to enforce the use of the golde
 - **Never hallucinate libraries or functions**.
 - **Always verify file paths and module names**.
 - **Never delete or overwrite existing code** unless part of an assigned task.
+- **Stopping Processes**: When asked to stop a running process (like a development server), do not instruct the user to use `Ctrl+C`. Instead, ask the user to find the Process ID (PID) and then use the `kill <PID>` command.
 
 ---
 

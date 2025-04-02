@@ -1,7 +1,9 @@
 import React, { useState, FormEvent, ChangeEvent, useRef, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom'; // Import router components
 import './App.css';
 import Sidebar from './components/Sidebar'; // Import Sidebar
 import MobileNavbar, { MobileMenuPanel } from './components/MobileNavbar'; // Import MobileNavbar and Panel
+import StyleGuidePage from './components/StyleGuidePage'; // Import the new style guide component
 
 // Define message structure
 interface Message {
@@ -59,8 +61,8 @@ const OpenIcon: React.FC<{ onClick: () => void }> = ({ onClick }) => (
   </svg>
 );
 
-// Main App Component
-function App() {
+// Component containing the main chat interface logic (previously the App component)
+const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -193,8 +195,6 @@ function App() {
     <div className={`app-wrapper ${isSidebarOpen ? 'sidebar-open' : 'sidebar-closed'} ${isMobileMenuOpen ? 'mobile-menu-active' : ''}`}>
 
       {/* Sidebar Component - Rendered on desktop */}
-      {/* Pass state and toggle function */}
-      {/* Sidebar Component - Rendered on desktop */}
       <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
 
       {/* Open Sidebar Icon Wrapper - Positioned absolutely */}
@@ -247,7 +247,30 @@ function App() {
 
     </div> // End app-wrapper
   );
-} // End of App component
+}; // End of ChatInterface component
 
-// Export statement at the end, top level
+
+// Main App component now handles routing
+const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Main chat interface route */}
+        <Route path="/" element={<ChatInterface />} />
+
+        {/* Conditionally render the style guide route only in development */}
+        {import.meta.env.DEV && (
+          <Route path="/styleguide" element={<StyleGuidePage />} />
+        )}
+
+        {/* Add other routes here as needed */}
+        {/* Example: <Route path="/about" element={<AboutPage />} /> */}
+
+        {/* Optional: Add a 404 Not Found route */}
+        {/* <Route path="*" element={<div>404 Not Found</div>} /> */}
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
 export default App;
