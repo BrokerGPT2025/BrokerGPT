@@ -6,6 +6,11 @@
 - OCR + scraping infrastructure in place
 - Style guide built and integrated with Tailwind
 - Role-based Supabase security established
+- Project file cleanup (removed old documentation files).
+- Introduced and populated Memory Bank system.
+- Performed code audit and fixed lint errors in frontend.
+- Committed and pushed recent changes to GitHub.
+- Integrated `Stylesheet/style.html` for live preview at `/styleguide` route (dev only).
 
 ## 🚧 In Progress
 - Carrier appetite logic and coverage matchmaking
@@ -24,6 +29,8 @@
 - AI parsing initially client-side → moved server-side for performance
 
 ## 📈 Next Steps
-- Build prospecting engine for lead gen
-- Add carrier rating system for Phase 2
-- Expand quote parsing fields and model support
+- Build prospecting engine for lead gen 
+- Add carrier appetite matching system   
+- Build generic commercial application form filling for submissions
+- Build SMTP server for sending submissions to carriers
+- Build quote tracking and ticketing system

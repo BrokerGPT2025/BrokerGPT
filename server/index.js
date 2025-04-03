@@ -142,13 +142,13 @@ app.post('/api/search', async (req, res) => {
     // --- 6. Determine Prompt based on Query Prefix ---
     let prompt;
     let actualQuery = query; // Use original query by default
-    const profileRegex = /^Profile:\s*/i; // Regex: Start, "Profile:", optional whitespace, case-insensitive
+    const profileRegex = /^@\s*/; // Regex: Start with '@', followed by optional whitespace
 
     const match = query.match(profileRegex);
     if (match) {
       // Prefix found, extract the actual query part
       actualQuery = query.substring(match[0].length).trim(); // Get query after the matched prefix part
-      console.log(`*** DEBUG: Entering PROFILE mode via REGEX for query: "${query}" ***`); // UPDATED DEBUG LOG
+      console.log(`*** DEBUG: Entering PROFILE mode via '@' prefix for query: "${query}" ***`); // UPDATED DEBUG LOG
       console.log(`Profile mode detected. Actual query: "${actualQuery}"`);
       // Define the DETAILED PROFILE prompt
       prompt = `

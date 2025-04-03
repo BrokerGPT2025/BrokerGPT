@@ -12,4 +12,4 @@ This platform empowers insurance agents and underwriters to work smarter using A
 
 ## For Developers and AI Coding Assistants
 
-See memory-bank for system prompts and app .md files
+See memory-bank/ for .md files

@@ -1,0 +1,191 @@
+/* Base Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #ffffff;
+    color: #000000;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Typography */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    line-height: 1.2;
+    color: #0D0D0D;
+  }
+  
+  h1 {
+    font-size: 3rem;
+  }
+  
+  h2 {
+    font-size: 2.25rem;
+  }
+  
+  h3 {
+    font-size: 1.75rem;
+  }
+  
+  p {
+    font-size: 1rem;
+    color: #2D2D2D;
+    margin-bottom: 1rem;
+  }
+  
+  /* Layout */
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  
+  .flex {
+    display: flex;
+    gap: 1rem;
+  }
+  
+  .flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .grid {
+    display: grid;
+    gap: 1rem;
+  }
+  
+  /* Buttons */
+  .button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    background-color: #000000;
+    color: #ffffff;
+  }
+  
+  .button:hover {
+    background-color: #333333;
+  }
+  
+  .button-secondary {
+    background-color: #F4F4F4;
+    color: #000000;
+  }
+  
+  .button-secondary:hover {
+    background-color: #E0E0E0;
+  }
+  
+  /* Cards */
+  .card {
+    background-color: #FAFAFA;
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.3s ease;
+  }
+  
+  .card:hover {
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Navigation */
+  .navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background-color: #ffffff;
+    border-bottom: 1px solid #E5E5E5;
+  }
+  
+  .navbar-logo {
+    font-size: 1.5rem;
+    font-weight: bold;
+  }
+  
+  .navbar-links a {
+    margin-left: 1.5rem;
+    text-decoration: none;
+    color: #0D0D0D;
+    font-weight: 500;
+  }
+  
+  .navbar-links a:hover {
+    color: #555555;
+  }
+  
+  /* Footer */
+  .footer {
+    padding: 2rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #7A7A7A;
+    border-top: 1px solid #E5E5E5;
+  }
+  
+  /* Utilities */
+  .text-center {
+    text-align: center;
+  }
+  
+  .rounded-full {
+    border-radius: 9999px;
+  }
+  
+  .hidden {
+    display: none;
+  }
+  
+  .visible {
+    display: block;
+  }
+  
+  /* Animations */
+  .fade-in {
+    animation: fadeIn 0.6s ease-in-out;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  /* Pill Tag Component */
+  .pilltag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05), 0 4px 6px rgba(0, 0, 0, 0.06);
+    font-size: 1rem;
+    font-weight: 500;
+    color: #5f5f5f;
+    gap: 0.5rem;
+  }
+  
+  .pilltag-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background-color: #FF6600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    color: white;
+    font-weight: bold;
+  }
+  

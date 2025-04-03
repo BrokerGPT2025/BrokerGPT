@@ -56,20 +56,42 @@
   margin: 0 auto;
   overflow: hidden;
   background-color: #f9f9f9;
-  position: relative; /* Added for absolute positioning of children */
-  flex-grow: 1; /* Ensure it takes space in main-content-wrapper */
-  height: 100%; /* Ensure it fills parent */
+  /* position: relative; */ /* Removed */
+  flex-grow: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Default: Center vertically */
+  /* padding-bottom: 2rem; */ /* REMOVED - Let margin-top on input handle spacing */
+  box-sizing: border-box;
+}
+
+/* State when messages exist */
+.chat-container.has-messages {
+  justify-content: flex-start; /* Align messages top, input bottom */
 }
 
 .messages-area {
-  flex-grow: 1; /* Let this grow to push input down conceptually */
-  overflow-y: auto; /* Enable vertical scrolling */
+  /* flex-grow: 1; */ /* REMOVED - Let content define height up to max */
+  flex-grow: 0; /* Don't grow initially */
+  height: auto; /* Start with auto height */
+  max-height: 33rem; /* Limit height */
+  overflow-y: auto; /* Scroll when exceeding max-height */
+  width: 100%; /* Take full width */
   padding: 1rem;
-  /* Calculate padding based on the input area's height and desired gap */
-  padding-bottom: calc(var(--input-height) + 2rem); /* Input height + desired gap */
+  padding-bottom: 1rem; /* Standard bottom padding */
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.chat-prompt-heading {
+  font-size: 1.5rem; /* Adjust size as needed */
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 1.5rem; /* Space above the input area */
+  text-align: center;
+  flex-shrink: 0; /* Prevent shrinking */
 }
 
 .message {
@@ -119,73 +141,103 @@
 
 
 .input-area {
-  position: absolute; /* Position absolutely */
-  bottom: 10rem; /* Restored original value */
-  left: 50%;
-  transform: translateX(-50%);
-  width: calc(100% - 2rem); /* Match padding of messages-area */
-  max-width: 770px; /* Match chat container max-width */
-  box-sizing: border-box;
-
+  /* Flex properties */
   display: flex;
-  padding: 0.75rem;
-  border-top: none; /* Remove top border */
-  background-color: #fff;
-  flex-shrink: 0;
-  border-radius: var(--input-border-radius); /* Use variable */
-  box-shadow: var(--input-shadow); /* Use variable */
-  height: var(--input-height); /* Use variable */
   align-items: center; /* Center items vertically */
-  padding: 0 1.5rem; /* Adjust padding for new height */
-}
+  flex-shrink: 0; /* Prevent shrinking */
 
-/* Original messages-area rule before flex-grow attempts */
-/* This might need adjustment if overlap persists */
-.messages-area {
-  /* flex-grow: 1; */ /* Keep commented out for original behavior */
-  height: 85%; /* Original explicit height */
-  max-height: 85%; /* Original explicit max-height */
-  overflow-y: auto; /* Enable vertical scrolling */
-  padding: 1rem;
-  padding-bottom: calc(var(--input-height) + 2rem); /* Keep space for absolute input */
-  display: flex;
+  /* Positioning & Sizing */
+  max-width: 38rem; /* Base max-width for large screens */
+  width: 90%; /* Default width for mobile */
+  margin-left: auto;
+  margin-right: auto;
+  /* margin-bottom: 2rem; */ /* REMOVED */
+  /* margin-top: auto; */ /* REMOVED - Let it sit below messages */
+  margin-top: 0; /* Explicitly set to 0 */
+  box-sizing: border-box;
+  /* height: var(--input-height); */ /* REMOVED - Let padding define height */
+  padding: 1rem 1.5rem; /* Adjust padding for content */
+
+  /* Appearance */
+  background-color: #fff;
+  border-radius: var(--input-border-radius); /* Ensure variable is applied */
+  box-shadow: var(--input-shadow); /* Ensure variable is applied */
+  border-top: none; /* No border needed if shadow is there */
+  /* Update flex direction for internal layout */
   flex-direction: column;
-  gap: 0.75rem;
+  align-items: stretch; /* Stretch children */
+  padding: 1rem; /* Adjust overall padding */
 }
 
+.input-wrapper {
+  width: 100%;
+  margin-bottom: 0.75rem; /* Space between input and icons */
+}
 
 .input-area input {
   flex-grow: 1;
   padding: 0.75rem 1rem; /* Increase padding */
   border: none; /* Remove border */
-  border-radius: 0; /* Remove radius if needed */
-  margin-right: 0.5rem;
-  background-color: transparent; /* Make input background transparent */
-  height: auto; /* Allow natural height */
-  font-size: 1rem; /* Adjust font size if needed */
+  border-radius: 0; /* Remove radius */
+  /* margin-right: 0.5rem; */ /* REMOVED - Input takes full width now */
+  background-color: transparent;
+  height: auto;
+  font-size: 1rem;
+  width: 100%; /* Make input take full width of its wrapper */
+  padding: 0.5rem 0; /* Adjust padding */
 }
 .input-area input:focus {
-    outline: none; /* Remove focus outline */
+    outline: none;
 }
 
-
-.input-area button {
-  padding: 0.5rem 1rem;
+.input-divider {
   border: none;
-  background-color: #007bff; /* Keep button style for now */
-  color: white;
-  border-radius: 4px;
+  border-top: 1px solid #e0e0e0; /* Style the horizontal line */
+  margin: 0;
+  width: 100%;
+}
+
+.input-actions {
+  display: flex;
+  justify-content: space-between; /* Space out icons */
+  align-items: center;
+  width: 100%;
+}
+
+.icon-button {
+  background: none;
+  border: none;
+  padding: 0.5rem;
   cursor: pointer;
-  transition: background-color 0.2s;
+  font-size: 1.2rem; /* Adjust icon size */
+  line-height: 1;
+  color: #555; /* Adjust icon color */
 }
 
-.input-area button:hover {
-  background-color: #0056b3;
-}
-
-.input-area button:disabled {
-  background-color: #cccccc;
+.icon-button:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
+}
+
+.icon-button.logo-icon {
+  /* Remove default button padding */
+  padding: 0;
+  /* Add specific styles for the logo icon if needed */
+  /* font-weight: bold; */ /* No longer needed for img */
+  /* background-color: black; */
+  /* color: white; */
+  /* border-radius: 50%; */
+  /* width: 24px; */ /* Set size on img instead */
+  /* height: 24px; */ /* Set size on img instead */
+  display: flex; /* Align img */
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-button.logo-icon img {
+  width: 25px;
+  height: 25px;
+  display: block; /* Remove extra space below image */
 }
 
 /* --- New Layout Styles --- */
@@ -448,3 +500,17 @@
 }
 
 /* Further adjustments might be needed for padding/margins */
+
+/* Responsive adjustments for input area */
+@media screen and (max-width: 998px) { /* Tablet breakpoint */
+  .input-area {
+    width: 80%;
+  }
+}
+
+/* Mobile breakpoint already handled by default width: 90% */
+/* @media screen and (max-width: 680px) { /* Mobile breakpoint */
+/*  .input-area { */
+/*    width: 90%; */
+/*  } */
+/* } */

@@ -218,7 +218,8 @@ const ChatInterface: React.FC = () => {
         <MobileMenuPanel isOpen={isMobileMenuOpen} />
 
         {/* Chat Container */}
-        <div className="chat-container">
+        {/* Add conditional 'has-messages' class */}
+        <div className={`chat-container ${messages.length > 0 ? 'has-messages' : ''}`}>
           <div className="messages-area">
             {messages.map((msg, index) => (
               <div key={index} className={`message ${msg.sender} ${msg.isError ? 'error' : ''}`}>
@@ -235,17 +236,30 @@ const ChatInterface: React.FC = () => {
             {/* Empty div to scroll to */}
             <div ref={messagesEndRef} />
           </div>
+          {/* Conditionally render the heading only when there are no messages */}
+          {messages.length === 0 && (
+            <h3 className="chat-prompt-heading">What can I help you with?</h3>
+          )}
+          {/* Updated input area structure */}
           <form className="input-area" onSubmit={handleSendMessage}>
-            <input
-              type="text"
-              value={inputValue}
-              onChange={handleInputChange}
-              placeholder="Ask me to search..."
-              disabled={isLoading}
-            />
-            <button type="submit" disabled={isLoading}>
-              Send
-            </button>
+            <div className="input-wrapper"> {/* Wrapper for input and line */}
+              <input
+                type="text"
+                value={inputValue}
+                onChange={handleInputChange}
+                placeholder="Ask anything about any company" // Updated placeholder
+                disabled={isLoading}
+              />
+              <hr className="input-divider" /> {/* Horizontal line */}
+            </div>
+            <div className="input-actions"> {/* Wrapper for icons */}
+              <button type="button" className="icon-button plus-icon" disabled={isLoading}>+</button> {/* Placeholder Plus Icon */}
+              {/* Submit on Enter still works via form onSubmit */}
+              {/* Replace button with img tag for SVG */}
+              <button type="submit" className="icon-button logo-icon" disabled={isLoading} title="Send message">
+                <img src="/b-icon-black.svg" alt="Send" /> {/* Reference copied SVG */}
+              </button>
+            </div>
           </form>
         </div> {/* End chat-container */}
 

@@ -15,6 +15,7 @@
 - Prettier for formatting, ESLint for linting
 - Tailwind CSS with custom style guide
 - Uses `.env` for secrets (never hardcode API keys)
+- Development-only route `/styleguide` added to `App.tsx` using `StyleGuidePage.tsx` to display `Stylesheet/style.html` via iframe for live editing preview.
 
 ## Constraints
 - All code modules < 500 lines
@@ -25,5 +26,5 @@
 
 ## Tooling & Configs
 - Uses Cursor, Windsurf, RooCode for AI-driven coding
-- AI must follow `PLANNING.md`, `STYLEGUIDE.md`, `TASK.md`
+- AI must follow all brokerGPT/memory-bank files 
 - Jest/Pytest test suites required per feature
