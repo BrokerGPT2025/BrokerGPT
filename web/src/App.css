@@ -65,7 +65,8 @@
   flex-grow: 1; /* Let this grow to push input down conceptually */
   overflow-y: auto; /* Enable vertical scrolling */
   padding: 1rem;
-  padding-bottom: 6rem; /* ADDED - Space for the absolute input area */
+  /* Calculate padding based on the input area's height and desired gap */
+  padding-bottom: calc(var(--input-height) + 2rem); /* Input height + desired gap */
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -119,8 +120,7 @@
 
 .input-area {
   position: absolute; /* Position absolutely */
-  bottom: 10rem; /* MODIFIED - Distance from bottom */
-  /* Adjust left/right to account for chat container's centering */
+  bottom: 10rem; /* Restored original value */
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 2rem); /* Match padding of messages-area */
@@ -139,19 +139,20 @@
   padding: 0 1.5rem; /* Adjust padding for new height */
 }
 
-/* Adjust padding-bottom on messages-area to match input height + gap */
+/* Original messages-area rule before flex-grow attempts */
+/* This might need adjustment if overlap persists */
 .messages-area {
-  /* flex-grow: 1; */ /* REMOVED */
-  height: 85%; /* Set explicit height (adjust as needed) */
-  max-height: 85%; /* Ensure it doesn't exceed this */
+  /* flex-grow: 1; */ /* Keep commented out for original behavior */
+  height: 85%; /* Original explicit height */
+  max-height: 85%; /* Original explicit max-height */
   overflow-y: auto; /* Enable vertical scrolling */
   padding: 1rem;
-  /* padding-bottom: 6rem; */ /* REMOVED - Adjust based on input height */
-  padding-bottom: calc(var(--input-height) + 2rem); /* Input height + desired gap */
+  padding-bottom: calc(var(--input-height) + 2rem); /* Keep space for absolute input */
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
+
 
 .input-area input {
   flex-grow: 1;

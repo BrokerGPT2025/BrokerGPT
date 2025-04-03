@@ -175,11 +175,17 @@ const ChatInterface: React.FC = () => {
       const newBotMessage: Message = { sender: 'bot', content: botContent };
       setMessages((prevMessages) => [...prevMessages, newBotMessage]);
 
-    } catch (error: any) {
+    } catch (error: unknown) { // Use unknown instead of any
       console.error("Error fetching search results:", error);
+      let errorMessage = 'Failed to get results'; // Default error message
+      if (error instanceof Error) {
+        errorMessage = error.message; // Use message if it's an Error instance
+      } else if (typeof error === 'string') {
+        errorMessage = error; // Use the string directly if it's a string error
+      }
       const newErrorMessage: Message = {
         sender: 'bot',
-        content: `Error: ${error.message || 'Failed to get results'}`,
+        content: `Error: ${errorMessage}`,
         isError: true,
       };
       setMessages((prevMessages) => [...prevMessages, newErrorMessage]);

@@ -12,6 +12,4 @@ This platform empowers insurance agents and underwriters to work smarter using A
 
 ## For Developers and AI Coding Assistants
 
-This project uses AI IDE integrations like Cursor, Windsurf, RooCode, and Cline to streamline coding workflows.
-
-👉 **Please read [CONTRIBUTING.md](CONTRIBUTING.md)** for all coding rules, architecture constraints, testing standards, and how AI tools should behave when editing or generating code.
+See memory-bank for system prompts and app .md files

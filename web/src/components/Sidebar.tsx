@@ -20,10 +20,10 @@ interface SidebarProps {
   onToggle: () => void; // Receive toggle function
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => { // Destructure props
+const Sidebar: React.FC<SidebarProps> = ({ onToggle }) => { // Destructure props (removed unused isOpen)
 
   // TODO: Add logic to determine the current page and apply 'w--current' class to the active link
-  const currentPage = 'profile'; // Example: Hardcoded for now
+  const currentPage: string = 'profile'; // Example: Hardcoded for now, explicitly typed as string
 
   return (
     <> {/* Use Fragment to return multiple top-level elements */}
