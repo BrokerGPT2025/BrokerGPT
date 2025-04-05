@@ -3,6 +3,21 @@
   line-height: 1.5;
   font-weight: 400;
 
+  /* --- Global Variables --- */
+  --brand-primary: #58ff01; /* User defined brand color */
+  --box-shadow: 0 .6021873017743928px 2.0474368260329356px -1.6666666666666665px #00000030, 0 2.288533303243457px 7.781013231027754px -3.333333333333333px #00000027, 0 10px 34px -5px #0000, 0 0 0 1px var(--token-e5fe42bb-0171-444b-bb6c-b12015a4b434, rgb(245, 245, 244)); /* User defined box shadow */
+  --accent-color: #80009b;
+  --dark-faded: rgba(0,0,0,0.19);
+  --dark-faded-hex: #b3b3b3;
+  --icon-color-focused: #000000;
+  --icon-color-unfocused: #b3b3b3;
+  --border-radius-small: 0.5rem;
+  --border-radius-regular: 1rem;
+  --border-radius-line-thickness: 1px;
+  --link-color: #535bf2; /* Defined link color */
+  --link-color-hover: #6469ba; /* Defined link hover color */
+  --chat-background-color: #ffffff; /* Background for chat area (white) */
+
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
   background-color: #242424;
@@ -15,11 +30,11 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--link-color); /* Use link color variable */
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: var(--link-color-hover); /* Use link hover color variable */
 }
 
 body {

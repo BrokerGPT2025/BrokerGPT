@@ -13,7 +13,7 @@
 ## Development Setup
 - TypeScript used across both front and back ends
 - Prettier for formatting, ESLint for linting
-- Tailwind CSS with custom style guide
+- Style with standard CSS and global variables
 - Uses `.env` for secrets (never hardcode API keys)
 - Development-only route `/styleguide` added to `App.tsx` using `StyleGuidePage.tsx` to display `Stylesheet/style.html` via iframe for live editing preview.
 

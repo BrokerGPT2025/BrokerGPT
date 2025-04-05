@@ -23,8 +23,8 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ onToggle }) => { // Destructure props (removed unused isOpen)
 
   // TODO: Add logic to determine the current page and apply 'w--current' class to the active link
-  const currentPage: string = 'profile'; // Example: Hardcoded for now, explicitly typed as string
-
+  const currentPage: string = 'agent'; // Default to AI Agent being active
+  
   return (
     <> {/* Use Fragment to return multiple top-level elements */}
       {/* Sidebar Section - Conditionally hidden/shown via CSS based on parent class */}

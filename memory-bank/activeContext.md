@@ -15,6 +15,7 @@
 - Restarted local development servers.
 - Committed and pushed recent changes to GitHub.
 - Configured `/styleguide` route (dev only) to display `Stylesheet/style.html` via iframe in `StyleGuidePage.tsx` for live preview.
+- Started backend (`cd server && node index.js`) and frontend (`cd web && npm run dev`) servers. Subsequently opened the frontend application in the browser (`open http://localhost:5173/`). This sequence is triggered by the "start servers" command.
 
 ## Decisions in Progress
 - Whether to support PDF parsing client-side or server-side

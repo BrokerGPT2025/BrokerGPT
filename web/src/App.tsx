@@ -68,6 +68,7 @@ const ChatInterface: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true); // State for sidebar
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false); // State for mobile menu
+  const [isAnimatingOut, setIsAnimatingOut] = useState<boolean>(false); // State for exit animation
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Toggle functions
@@ -91,15 +92,24 @@ const ChatInterface: React.FC = () => {
   const handleSendMessage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const userQuery = inputValue.trim();
-    if (!userQuery) return;
+    // Prevent multiple submissions during animation or loading
+    if (!userQuery || isLoading || isAnimatingOut) return;
 
-    const newUserMessage: Message = { sender: 'user', content: userQuery };
-    setMessages((prevMessages) => [...prevMessages, newUserMessage]);
-    setInputValue('');
-    setIsLoading(true);
+    // Trigger animation only if it's the first message
+    if (messages.length === 0) {
+      setIsAnimatingOut(true);
+    }
 
-    try {
-      // --- Call Backend API using Environment Variable ---
+    const animationDuration = 500; // ms - Should match CSS transition duration
+
+    // Delay the actual message processing to allow animation to run
+    setTimeout(async () => {
+      const newUserMessage: Message = { sender: 'user', content: userQuery };
+      setMessages((prevMessages) => [...prevMessages, newUserMessage]);
+      setIsLoading(true);
+
+      try {
+        // --- Call Backend API using Environment Variable ---
       const backendUrl = import.meta.env.VITE_BACKEND_API_URL;
       if (!backendUrl) {
         throw new Error("Backend API URL is not configured. Set VITE_BACKEND_API_URL environment variable.");
@@ -190,8 +200,16 @@ const ChatInterface: React.FC = () => {
       };
       setMessages((prevMessages) => [...prevMessages, newErrorMessage]);
     } finally {
-      setIsLoading(false);
-    }
+        setIsLoading(false);
+        // Reset animation state after API call finishes and messages are rendered
+        // This ensures the wrapper is fully removed if needed later
+        setIsAnimatingOut(false);
+      }
+    }, messages.length === 0 ? animationDuration : 0); // Apply delay only for the first message submission
+
+    // Clear input immediately for better UX, outside the timeout
+    setInputValue('');
+
   }; // End of handleSendMessage
 
   // Component Render
@@ -236,31 +254,36 @@ const ChatInterface: React.FC = () => {
             {/* Empty div to scroll to */}
             <div ref={messagesEndRef} />
           </div>
-          {/* Conditionally render the heading only when there are no messages */}
-          {messages.length === 0 && (
-            <h3 className="chat-prompt-heading">What can I help you with?</h3>
+
+          {/* Spacer element for animation */}
+          <div className="chat-spacer"></div>
+
+          {/* Heading - Render when no messages OR when animating out */}
+          {(messages.length === 0 || isAnimatingOut) && (
+              <h3 className={`chat-prompt-heading ${isAnimatingOut ? 'animating-out' : ''}`}>What can I help you with?</h3>
           )}
-          {/* Updated input area structure */}
+
+          {/* Render the input area separately and ALWAYS */}
+          {/* Its position is controlled by CSS (margin-top: auto) when messages exist */}
           <form className="input-area" onSubmit={handleSendMessage}>
-            <div className="input-wrapper"> {/* Wrapper for input and line */}
-              <input
-                type="text"
-                value={inputValue}
-                onChange={handleInputChange}
-                placeholder="Ask anything about any company" // Updated placeholder
-                disabled={isLoading}
-              />
-              <hr className="input-divider" /> {/* Horizontal line */}
-            </div>
-            <div className="input-actions"> {/* Wrapper for icons */}
-              <button type="button" className="icon-button plus-icon" disabled={isLoading}>+</button> {/* Placeholder Plus Icon */}
-              {/* Submit on Enter still works via form onSubmit */}
-              {/* Replace button with img tag for SVG */}
-              <button type="submit" className="icon-button logo-icon" disabled={isLoading} title="Send message">
-                <img src="/b-icon-black.svg" alt="Send" /> {/* Reference copied SVG */}
-              </button>
-            </div>
-          </form>
+              <div className="input-wrapper">
+                <input
+                    type="text"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    placeholder="@Business Name creates new prospect, or ask anything else."
+                    disabled={isLoading}
+                    autoFocus
+                  />
+                  <hr className="input-divider" />
+                </div>
+                <div className="input-actions">
+                  <button type="button" className="icon-button plus-icon" disabled={isLoading}>+</button>
+                  <button type="submit" className="icon-button logo-icon" disabled={isLoading} title="Send message">
+                    <img src="/b-icon-black.svg" alt="Send" />
+                  </button>
+                </div>
+              </form>
         </div> {/* End chat-container */}
 
       </div> {/* End main-content-wrapper */}
