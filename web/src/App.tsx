@@ -68,7 +68,7 @@ const ChatInterface: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true); // State for sidebar
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false); // State for mobile menu
-  const [isAnimatingOut, setIsAnimatingOut] = useState<boolean>(false); // State for exit animation
+  // const [isAnimatingOut, setIsAnimatingOut] = useState<boolean>(false); // State for exit animation - REMOVED as per plan
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Toggle functions
@@ -92,24 +92,24 @@ const ChatInterface: React.FC = () => {
   const handleSendMessage = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const userQuery = inputValue.trim();
-    // Prevent multiple submissions during animation or loading
-    if (!userQuery || isLoading || isAnimatingOut) return;
+    // Prevent multiple submissions during loading
+    if (!userQuery || isLoading) return; // Removed isAnimatingOut check
 
-    // Trigger animation only if it's the first message
-    if (messages.length === 0) {
-      setIsAnimatingOut(true);
-    }
+    // Animation logic removed
+    // if (messages.length === 0) {
+    //   setIsAnimatingOut(true);
+    // }
+    // const animationDuration = 500;
+    // setTimeout(async () => { ... }, messages.length === 0 ? animationDuration : 0);
 
-    const animationDuration = 500; // ms - Should match CSS transition duration
+    // Process message immediately
+    const newUserMessage: Message = { sender: 'user', content: userQuery };
+    setMessages((prevMessages) => [...prevMessages, newUserMessage]);
+    setIsLoading(true);
+    setInputValue(''); // Clear input immediately
 
-    // Delay the actual message processing to allow animation to run
-    setTimeout(async () => {
-      const newUserMessage: Message = { sender: 'user', content: userQuery };
-      setMessages((prevMessages) => [...prevMessages, newUserMessage]);
-      setIsLoading(true);
-
-      try {
-        // --- Call Backend API using Environment Variable ---
+    try {
+      // --- Call Backend API using Environment Variable ---
       const backendUrl = import.meta.env.VITE_BACKEND_API_URL;
       if (!backendUrl) {
         throw new Error("Backend API URL is not configured. Set VITE_BACKEND_API_URL environment variable.");
@@ -201,14 +201,14 @@ const ChatInterface: React.FC = () => {
       setMessages((prevMessages) => [...prevMessages, newErrorMessage]);
     } finally {
         setIsLoading(false);
-        // Reset animation state after API call finishes and messages are rendered
-        // This ensures the wrapper is fully removed if needed later
-        setIsAnimatingOut(false);
+        // Reset animation state removed
+        // setIsAnimatingOut(false);
       }
-    }, messages.length === 0 ? animationDuration : 0); // Apply delay only for the first message submission
+    // Removed timeout wrapper
+    // }, messages.length === 0 ? animationDuration : 0);
 
-    // Clear input immediately for better UX, outside the timeout
-    setInputValue('');
+    // Input clearing moved up
+    // setInputValue('');
 
   }; // End of handleSendMessage
 
@@ -235,56 +235,70 @@ const ChatInterface: React.FC = () => {
         {/* Mobile Menu Panel - Conditionally rendered based on state */}
         <MobileMenuPanel isOpen={isMobileMenuOpen} />
 
-        {/* Chat Container */}
-        {/* Add conditional 'has-messages' class */}
-        <div className={`chat-container ${messages.length > 0 ? 'has-messages' : ''}`}>
-          <div className="messages-area">
-            {messages.map((msg, index) => (
-              <div key={index} className={`message ${msg.sender} ${msg.isError ? 'error' : ''}`}>
-                {/* Use pre-wrap for spacing, but process content for links */}
-                <pre>{linkifyUrls(msg.content)}</pre>
+        {/* --- NEW GPT WRAPPER --- */}
+        <div className="gpt">
+          {/* --- NEW FEED WRAPPER --- */}
+          <div className="feed">
+            {/* Original chat-container moved inside feed */}
+            {/* Conditional 'has-messages' class removed from here */}
+            <div className={`chat-container`}>
+              <div className="messages-area">
+                {messages.map((msg, index) => (
+                  <div key={index} className={`message ${msg.sender} ${msg.isError ? 'error' : ''}`}>
+                    {/* Use pre-wrap for spacing, but process content for links */}
+                    <pre>{linkifyUrls(msg.content)}</pre>
+                  </div>
+                ))}
+                {/* Loading indicator */}
+                {isLoading && (
+                  <div className="message bot loading">
+                    <span>Thinking...</span>
+                  </div>
+                )}
+                {/* Empty div to scroll to */}
+                <div ref={messagesEndRef} />
               </div>
-            ))}
-            {/* Loading indicator */}
-            {isLoading && (
-              <div className="message bot loading">
-                <span>Thinking...</span>
-              </div>
-            )}
-            {/* Empty div to scroll to */}
-            <div ref={messagesEndRef} />
-          </div>
 
-          {/* Spacer element for animation */}
-          <div className="chat-spacer"></div>
+              {/* Spacer element deleted */}
+              {/* <div className="chat-spacer"></div> */}
 
-          {/* Heading - Render when no messages OR when animating out */}
-          {(messages.length === 0 || isAnimatingOut) && (
-              <h3 className={`chat-prompt-heading ${isAnimatingOut ? 'animating-out' : ''}`}>What can I help you with?</h3>
-          )}
+              {/* Heading moved to prompt-wrapper */}
 
-          {/* Render the input area separately and ALWAYS */}
-          {/* Its position is controlled by CSS (margin-top: auto) when messages exist */}
-          <form className="input-area" onSubmit={handleSendMessage}>
-              <div className="input-wrapper">
-                <input
-                    type="text"
-                    value={inputValue}
-                    onChange={handleInputChange}
-                    placeholder="@Business Name creates new prospect, or ask anything else."
-                    disabled={isLoading}
-                    autoFocus
-                  />
-                  <hr className="input-divider" />
-                </div>
-                <div className="input-actions">
-                  <button type="button" className="icon-button plus-icon" disabled={isLoading}>+</button>
-                  <button type="submit" className="icon-button logo-icon" disabled={isLoading} title="Send message">
-                    <img src="/b-icon-black.svg" alt="Send" />
-                  </button>
-                </div>
-              </form>
-        </div> {/* End chat-container */}
+            </div> {/* End chat-container */}
+          </div> {/* --- END FEED WRAPPER --- */}
+
+          {/* --- NEW PROMPT WRAPPER --- */}
+          {/* Add conditional 'shrunk' class for height animation */}
+          <div className={`prompt-wrapper ${messages.length > 0 ? 'shrunk' : ''}`}>
+            {/* Heading - Moved here */}
+            {/* Always render heading, apply 'faded-out' class conditionally */}
+            <h3 className={`chat-prompt-heading ${messages.length > 0 ? 'faded-out' : ''}`}>
+              What can I help you with?
+            </h3>
+
+            {/* Original input form moved inside prompt-wrapper */}
+            <form className="input-area" onSubmit={handleSendMessage}>
+                <div className="input-wrapper">
+                  <input
+                      type="text"
+                      value={inputValue}
+                      onChange={handleInputChange}
+                      placeholder="@Business Name creates new prospect, or ask anything else."
+                      disabled={isLoading}
+                      autoFocus
+                    />
+                    <hr className="input-divider" />
+                  </div>
+                  <div className="input-actions">
+                    <button type="button" className="icon-button plus-icon" disabled={isLoading}>+</button>
+                    <button type="submit" className="icon-button logo-icon" disabled={isLoading} title="Send message">
+                      <img src="/b-icon-black.svg" alt="Send" />
+                    </button>
+                  </div>
+                </form>
+          </div> {/* --- END PROMPT WRAPPER --- */}
+
+        </div> {/* --- END GPT WRAPPER --- */}
 
       </div> {/* End main-content-wrapper */}
 

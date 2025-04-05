@@ -58,70 +58,64 @@
   background-color: var(--chat-background-color); /* Use global variable */
   /* position: relative; */ /* Removed */
   flex-grow: 1; /* Take available space */
-  /* height: 100%; */ /* Let flex-grow handle height */
+  /* height: 100%; */ /* REMOVED */
   display: flex;
   flex-direction: column;
-  justify-content: center; /* Center items vertically */
-  align-items: center; /* Center items horizontally */
-  padding: 2rem 1rem; /* Simplified padding */
+  /* justify-content: center; */ /* REMOVED - Handled by new wrappers */
+  /* align-items: center; */ /* REMOVED - Handled by new wrappers */
+  padding: 0; /* REMOVED - Handled by new wrappers */
   box-sizing: border-box;
-  position: relative;
-  overflow: hidden; /* Keep this */
+  position: relative; /* Keep relative positioning */
+  overflow: visible; /* Allow content to overflow if needed within feed */
+  width: 100%; /* Ensure it takes width within feed */
+  margin: 0; /* Remove auto margins */
 }
 
-/* State when messages exist */
-.chat-container.has-messages {
-  justify-content: flex-start; /* Align items top */
-  padding: 5rem 1rem; /* Set specific padding when messages exist */
-}
+/* State when messages exist - REMOVED */
+/* .chat-container.has-messages { ... } */
 
 .messages-area {
-  /* flex-grow: 1; */ /* REMOVED - Let content define height up to max */
-  flex-grow: 0; /* Don't grow initially */
-  height: 0; /* Start collapsed */
-  max-height: 33rem; /* Limit height */
-  overflow: hidden; /* Hide content and scrollbars initially */
+  /* flex-grow: 1; */ /* Let chat-container handle growth */
+  /* height: 0; */ /* REMOVED */
+  /* max-height: 33rem; */ /* REMOVED */
+  overflow-y: auto; /* Always allow scroll if needed */
   width: 100%; /* Take full width */
-  transition: height 0.5s ease; /* Add transition for smooth expansion */
-  padding: 1rem;
+  /* transition: height 0.5s ease; */ /* REMOVED */
+  padding: 1rem; /* Keep padding */
   padding-bottom: 1rem; /* Standard bottom padding */
+  position: relative; /* Ensure relative positioning */
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-/* Set explicit height and restore overflow when messages are present */
-.chat-container.has-messages .messages-area {
-  height: 33rem; /* Expand to fixed height */
-  overflow-y: auto; /* Allow scrolling when expanded */
-}
+/* Set explicit height and restore overflow when messages are present - REMOVED */
+/* .chat-container.has-messages .messages-area { ... } */
 
 .chat-prompt-heading {
-  font-size: 1.95rem; /* Increased size by 30% */
+  font-size: 1.95rem; /* Increased size by 30% */ /* Keep existing styles */
   font-weight: 500;
   color: #333;
   margin-bottom: 1.5rem; /* Space above the input area */
   text-align: center;
   flex-shrink: 0; /* Prevent shrinking */
-  /* Add transition for animation */
-  transition: transform 0.5s ease-out, opacity 0.5s ease-out;
+  transition: opacity 0.5s ease-out; /* Add transition for fade effect */
 }
 
-/* Style for heading animating out */
-.chat-prompt-heading.animating-out {
-  transform: translateY(50px); /* Slide down */
+/* Style for heading faded out */
+.chat-prompt-heading.faded-out {
   opacity: 0;
-  pointer-events: none; /* Disable interaction during animation */
+  pointer-events: none; /* Prevent interaction when faded */
 }
 
-/* Ensure input area inside the wrapper takes appropriate width */
-/* .initial-prompt-wrapper .input-area { */ /* This wrapper no longer exists */
-  /* margin-top: 0; */ /* Removed - Was part of the deleted rule */
-  /* Width and max-width are already set on .input-area */
-/* } */ /* Removed - Was part of the deleted rule */
+/* Style for heading animating out - REMOVED */ /* Keep this comment as it was already there */
+/* .chat-prompt-heading.animating-out { ... } */
+
+/* Ensure input area inside the wrapper takes appropriate width - REMOVED */
+/* .initial-prompt-wrapper .input-area { ... } */
 
 
-.message {
+.message { /* Keep existing message styles */
   padding: 0.75rem 1rem;
   border-radius: 10px;
   max-width: 80%;
@@ -169,18 +163,19 @@
   display: flex;
   align-items: center; /* Center items vertically */
   flex-shrink: 0; /* Prevent shrinking */
-  transition: transform 2s cubic-bezier(1, -.473, .199, 1.585); /* Animate transform instead of margin */
+  /* transition: transform 2s cubic-bezier(1, -.473, .199, 1.585); */ /* REMOVED */
+  /* transform: translateY(50px); */ /* REMOVED */
 
   /* Positioning & Sizing */
-  max-width: 38rem; /* Base max-width for large screens */
-  width: 90%; /* Default width for mobile */
-  margin-left: auto;
-  margin-right: auto;
-  /* margin-bottom: 0; */ /* Ensure no default bottom margin */
-  /* margin-top: auto; */ /* Apply conditionally */
+  max-width: 38rem; /* Base max-width for large screens */ /* Keep */
+  width: 100%; /* Take full width of prompt-wrapper */
+  /* margin-left: auto; */ /* REMOVED - Handled by prompt-wrapper */
+  /* margin-right: auto; */ /* REMOVED - Handled by prompt-wrapper */
+  /* margin-top: auto; */ /* REMOVED */
   box-sizing: border-box;
-  /* height: var(--input-height); */ /* REMOVED - Let padding define height */
-  padding: 1rem 1.5rem; /* Adjust padding for content */
+  /* height: var(--input-height); */ /* REMOVED */
+  padding: 1rem 1.5rem; /* Adjust padding for content */ /* Keep */
+  position: relative; /* Ensure relative positioning */
 
   /* Appearance */
   background-color: #fff;
@@ -191,10 +186,10 @@
   flex-direction: column;
   justify-content: center; /* Center children vertically */
   align-items: stretch; /* Stretch children */
-  padding: 1rem; /* Adjust overall padding */
+  padding: 1rem; /* Adjust overall padding */ /* Keep */
 }
 
-.input-wrapper {
+.input-wrapper { /* Keep existing styles */
   width: 100%;
   margin-bottom: 0.75rem; /* Space between input and icons */
 }
@@ -272,15 +267,84 @@
   display: block; /* Remove extra space below image */
 }
 
-/* Apply margin-top AND transform when messages are present */
-.chat-container.has-messages .input-area {
-  margin-top: auto; /* Ensures final position at bottom */
-  transform: translateY(50px); /* Animate downwards like heading */
-}
+/* Apply margin-top AND transform when messages are present - REMOVED */
+/* .chat-container.has-messages .input-area { ... } */
 
 /* --- New Layout Styles --- */
 
-.app-wrapper {
+/* Styles for new wrappers based on image */
+.gpt {
+  display: flex; /* Keep flex for layout */
+  flex-direction: column; /* Keep column direction */
+  justify-content: flex-end; /* Align children to bottom (Y-axis) */
+  align-items: center; /* Align children to center (X-axis) */
+  /* flex-grow: 1; */ /* Removed, fixed position handles size */
+  /* height: 100%; */ /* Removed, fixed position handles size */
+  overflow: auto; /* From image */
+  position: fixed; /* From image */
+  top: 0; /* From image */
+  right: 0; /* From image */
+  bottom: 0; /* From image */
+  left: 0; /* From image */
+  width: auto; /* Let fixed positioning define width */
+  /* background-color: lightblue; */ /* Debug color */
+}
+
+.feed {
+  /* flex-grow: 1; */ /* Removed, absolute position handles size */
+  overflow: hidden; /* Added as requested */
+  position: absolute; /* From image */
+  width: 50%; /* From image */
+  height: 73vh; /* Updated from image */
+  bottom: 11rem; /* Updated from image */
+  left: 50%; /* Center horizontally */
+  transform: translateX(-50%); /* Center horizontally */
+  right: auto; /* Explicitly set */
+  top: auto; /* Explicitly set */
+  padding: 0; /* Remove previous padding */
+  display: flex;
+  flex-direction: column;
+  /* background-color: lightgreen; */ /* Debug color */
+}
+
+.prompt-wrapper {
+  flex-shrink: 0; /* Keep */
+  padding: 0; /* From image */
+  margin: 0; /* From image */
+  position: relative; /* Keep relative for children */
+  display: flex; /* Keep flex */
+  flex-direction: column; /* Keep column */
+  align-items: center; /* Keep center */
+  width: 100%; /* From image */
+  height: 70vh; /* Changed initial height to 70vh */
+  overflow: auto; /* From image */
+  /* background-color: lightcoral; */ /* Debug color */
+  /* Note: Absolute positioning might be needed depending on desired layout relative to feed */
+  transition: height 1s cubic-bezier(1, -.35, .269, 1.416); /* Added animation */
+}
+
+/* Style for shrunk state */
+.prompt-wrapper.shrunk {
+  height: 30vh; /* Target height */
+}
+
+/* Adjust chat-container margin now that it's inside feed */
+/* No longer needed as feed has padding: 0 */
+/* .feed .chat-container { ... } */
+
+/* Adjust input-area styles based on prompt-box */
+.prompt-wrapper .input-area {
+  margin: 0 auto; /* From image */
+  width: 100%; /* From image */
+  max-width: 38rem; /* From image */
+  position: relative; /* From image */
+  overflow: auto; /* From image */
+  /* margin-top: auto; */ /* Removed based on image */
+  /* margin-bottom: 1rem; */ /* Removed based on image */
+}
+
+
+.app-wrapper { /* Keep existing styles */
   display: flex;
   width: 100vw;
   height: 100vh;
@@ -427,7 +491,7 @@
   position: relative;
 }
 
-.mobile-navbar-container {
+.mobile-navbar-container { /* Keep existing styles */
   display: none;
   height: 80px;
   padding: 0 5%;
@@ -556,6 +620,13 @@
     display: none; /* Hide mobile navbar on larger screens */
   }
   .sidebar-icon-absolute-wrapper {
-    display: none !important; /* Always hide floating open icon on larger screens */
-  }
+  display: none !important; /* Always hide floating open icon on larger screens */
+}
+
+/* Ensure chat-container doesn't have conflicting styles */
+/* Remove redundant/conflicting rules if any */
+/* Example: Remove padding if handled by .feed */
+/* .chat-container { */ /* Removed empty ruleset */
+  /* padding: 0; */ /* Example adjustment if needed */
+/* } */
 }
