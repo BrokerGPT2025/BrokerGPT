@@ -55,29 +55,34 @@
   max-width: 770px;
   margin: 0 auto;
   overflow: hidden;
-  background-color: #f9f9f9;
+  background-color: var(--chat-background-color); /* Use global variable */
   /* position: relative; */ /* Removed */
-  flex-grow: 1;
-  height: 100%;
+  flex-grow: 1; /* Take available space */
+  /* height: 100%; */ /* Let flex-grow handle height */
   display: flex;
   flex-direction: column;
-  justify-content: center; /* Default: Center vertically */
-  /* padding-bottom: 2rem; */ /* REMOVED - Let margin-top on input handle spacing */
+  justify-content: center; /* Center items vertically */
+  align-items: center; /* Center items horizontally */
+  padding: 2rem 1rem; /* Simplified padding */
   box-sizing: border-box;
+  position: relative;
+  overflow: hidden; /* Keep this */
 }
 
 /* State when messages exist */
 .chat-container.has-messages {
-  justify-content: flex-start; /* Align messages top, input bottom */
+  justify-content: flex-start; /* Align items top */
+  padding: 5rem 1rem; /* Set specific padding when messages exist */
 }
 
 .messages-area {
   /* flex-grow: 1; */ /* REMOVED - Let content define height up to max */
   flex-grow: 0; /* Don't grow initially */
-  height: auto; /* Start with auto height */
+  height: 0; /* Start collapsed */
   max-height: 33rem; /* Limit height */
-  overflow-y: auto; /* Scroll when exceeding max-height */
+  overflow: hidden; /* Hide content and scrollbars initially */
   width: 100%; /* Take full width */
+  transition: height 0.5s ease; /* Add transition for smooth expansion */
   padding: 1rem;
   padding-bottom: 1rem; /* Standard bottom padding */
   display: flex;
@@ -85,14 +90,36 @@
   gap: 0.75rem;
 }
 
+/* Set explicit height and restore overflow when messages are present */
+.chat-container.has-messages .messages-area {
+  height: 33rem; /* Expand to fixed height */
+  overflow-y: auto; /* Allow scrolling when expanded */
+}
+
 .chat-prompt-heading {
-  font-size: 1.5rem; /* Adjust size as needed */
+  font-size: 1.95rem; /* Increased size by 30% */
   font-weight: 500;
   color: #333;
   margin-bottom: 1.5rem; /* Space above the input area */
   text-align: center;
   flex-shrink: 0; /* Prevent shrinking */
+  /* Add transition for animation */
+  transition: transform 0.5s ease-out, opacity 0.5s ease-out;
 }
+
+/* Style for heading animating out */
+.chat-prompt-heading.animating-out {
+  transform: translateY(50px); /* Slide down */
+  opacity: 0;
+  pointer-events: none; /* Disable interaction during animation */
+}
+
+/* Ensure input area inside the wrapper takes appropriate width */
+/* .initial-prompt-wrapper .input-area { */ /* This wrapper no longer exists */
+  /* margin-top: 0; */ /* Removed - Was part of the deleted rule */
+  /* Width and max-width are already set on .input-area */
+/* } */ /* Removed - Was part of the deleted rule */
+
 
 .message {
   padding: 0.75rem 1rem;
@@ -131,13 +158,10 @@
 
 .message.bot.loading span {
   display: inline-block;
-  animation: pulse 1.5s infinite ease-in-out;
+  /* Animation completely removed */
 }
 
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
+/* Keyframes for pulse animation completely removed */
 
 
 .input-area {
@@ -145,15 +169,15 @@
   display: flex;
   align-items: center; /* Center items vertically */
   flex-shrink: 0; /* Prevent shrinking */
+  transition: transform 2s cubic-bezier(1, -.473, .199, 1.585); /* Animate transform instead of margin */
 
   /* Positioning & Sizing */
   max-width: 38rem; /* Base max-width for large screens */
   width: 90%; /* Default width for mobile */
   margin-left: auto;
   margin-right: auto;
-  /* margin-bottom: 2rem; */ /* REMOVED */
-  /* margin-top: auto; */ /* REMOVED - Let it sit below messages */
-  margin-top: 0; /* Explicitly set to 0 */
+  /* margin-bottom: 0; */ /* Ensure no default bottom margin */
+  /* margin-top: auto; */ /* Apply conditionally */
   box-sizing: border-box;
   /* height: var(--input-height); */ /* REMOVED - Let padding define height */
   padding: 1rem 1.5rem; /* Adjust padding for content */
@@ -165,6 +189,7 @@
   border-top: none; /* No border needed if shadow is there */
   /* Update flex direction for internal layout */
   flex-direction: column;
+  justify-content: center; /* Center children vertically */
   align-items: stretch; /* Stretch children */
   padding: 1rem; /* Adjust overall padding */
 }
@@ -176,7 +201,7 @@
 
 .input-area input {
   flex-grow: 1;
-  padding: 0.75rem 1rem; /* Increase padding */
+  /* padding: 0.75rem 1rem; */ /* REMOVED - Consolidated below */
   border: none; /* Remove border */
   border-radius: 0; /* Remove radius */
   /* margin-right: 0.5rem; */ /* REMOVED - Input takes full width now */
@@ -184,10 +209,17 @@
   height: auto;
   font-size: 1rem;
   width: 100%; /* Make input take full width of its wrapper */
-  padding: 0.5rem 0; /* Adjust padding */
+  padding: 0.5rem 0 0.5rem 0.25rem; /* Adjust padding: Set left padding to 0.25rem */
 }
 .input-area input:focus {
     outline: none;
+}
+
+/* Style the placeholder text specifically */
+.input-area input::placeholder {
+  padding-left: 0.25rem; /* Set space before placeholder to 0.25rem */
+  color: #999; /* Optional: Adjust placeholder color */
+  opacity: 1; /* Ensure placeholder is visible */
 }
 
 .input-divider {
@@ -240,6 +272,12 @@
   display: block; /* Remove extra space below image */
 }
 
+/* Apply margin-top AND transform when messages are present */
+.chat-container.has-messages .input-area {
+  margin-top: auto; /* Ensures final position at bottom */
+  transform: translateY(50px); /* Animate downwards like heading */
+}
+
 /* --- New Layout Styles --- */
 
 .app-wrapper {
@@ -261,7 +299,7 @@
   overflow-y: auto;
   transition: min-width 0.3s ease, width 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
   z-index: 10;
-  display: flex;
+  display: none; /* Hide by default (mobile-first) */
   flex-direction: column;
 }
 
@@ -425,8 +463,6 @@
   align-items: center;
   justify-content: center;
 }
-.mobile-navbar-container .w-icon-nav-menu {
-}
 
 .nav-menu-7 {
   display: none;
@@ -460,29 +496,28 @@
   border: none;
   border-radius: 0;
   max-width: 770px;
-  width: 100%;
   margin: 0 auto;
-  background-color: #f9f9f9;
   overflow: hidden;
+  background-color: var(--chat-background-color); /* Use global variable */
+  /* position: relative; */ /* Removed */
+  /* flex-grow: 1;
+  height: 100%;
   display: flex;
   flex-direction: column;
-} */
+  justify-content: center; /* Default: Center vertically */
+  /* padding-bottom: 2rem; /* Restored padding-bottom */
+  /* box-sizing: border-box;
+  /* padding: 1rem 1rem 1rem 1rem; /* Added user-requested padding */
 
-@media screen and (max-width: 991px) {
-  .left-sidebar {
-    display: none;
-  }
-  .mobile-navbar-container {
-    display: flex;
-  }
-  .chat-container {
-     max-height: calc(100vh - 80px); /* Ensure chat fits below mobile nav */
-  }
-  .sidebar-icon-absolute-wrapper {
-    display: none !important;
-  }
+.mobile-navbar-container {
+  display: flex;
 }
-
+.chat-container {
+  max-height: calc(100vh - 80px); /* Ensure chat fits below mobile nav */
+}
+.sidebar-icon-absolute-wrapper {
+  display: none !important;
+}
 .sidebar-icon-absolute-wrapper {
   position: fixed;
   top: 1rem;
@@ -494,9 +529,6 @@
 
 .app-wrapper.sidebar-closed .sidebar-icon-absolute-wrapper {
   display: block;
-}
-
-.sidebar-icon-absolute {
 }
 
 /* Further adjustments might be needed for padding/margins */
@@ -514,3 +546,16 @@
 /*    width: 90%; */
 /*  } */
 /* } */
+
+/* --- Responsive Navigation --- */
+@media screen and (min-width: 999px) {
+  .left-sidebar {
+    display: flex; /* Show sidebar on larger screens */
+  }
+  .mobile-navbar-container {
+    display: none; /* Hide mobile navbar on larger screens */
+  }
+  .sidebar-icon-absolute-wrapper {
+    display: none !important; /* Always hide floating open icon on larger screens */
+  }
+}
