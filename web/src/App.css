@@ -293,7 +293,7 @@
 
 .feed {
   /* flex-grow: 1; */ /* Removed, absolute position handles size */
-  overflow: visible; /* Changed from hidden to visible to prevent message cutoff */
+  overflow: hidden; /* Changed from visible to hidden */
   position: absolute; /* From image */
   width: 50%; /* From image */
   height: 73vh; /* Updated from image */
