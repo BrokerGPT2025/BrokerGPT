@@ -31,10 +31,10 @@ if (!SERPER_API_KEY || !BROWSERLESS_API_KEY || !GOOGLE_API_KEY) {
 // --- Initialize Langchain Model ---
 const llm = new ChatGoogleGenerativeAI({
   apiKey: GOOGLE_API_KEY,
-  model: "gemini-pro", // Use 'model' instead of 'modelName'
+  model: "gemini-1.0-pro", // Try the specific versioned model name
   temperature: 0.3, // Adjust temperature as needed
 });
-console.log("Langchain ChatGoogleGenerativeAI model initialized.");
+console.log("Langchain ChatGoogleGenerativeAI model initialized with gemini-1.0-pro.");
 
 // --- Initialize OpenManus MCP Integration --- // Note: This log might be misleading now
 console.log("Using OpenManus deep_research tool for research queries."); // TODO: Remove or update this log message
