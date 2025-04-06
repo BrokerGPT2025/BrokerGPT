@@ -5,7 +5,8 @@
 - **Backend**: Node.js (REST API)
 - **Database**: Supabase (Postgres)
 - **Authentication**: Supabase Auth (JWT-based)
-- **LLM Integration**: Google Gemini
+- **LLM Orchestration**: Langchain JS (`langchain`, `@langchain/google-genai`)
+- **LLM Integration**: Google Gemini (via Langchain)
 - **CI/CD**: GitHub Actions
 - **Version Control**: GitHub
 - **Payment Integration**: Stripe

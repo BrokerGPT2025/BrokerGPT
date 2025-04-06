@@ -25,6 +25,7 @@
 - Pushed all commits from the main `brokerGPT` repository.
 - Attempted to push local commits from `OpenManus` to its remote (`mannaandpoem/OpenManus`) but failed due to permissions (403 error). Decided to leave these commits unsynced for now, as the local state is saved for potential Langchain adaptation.
 - Installed `langchain` npm package in the `server` directory.
+- Installed `@langchain/google-genai` npm package in the `server` directory for Google Gemini integration.
 
 ## Decisions in Progress
 - Whether to support PDF parsing client-side or server-side
