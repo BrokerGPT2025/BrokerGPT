@@ -19,6 +19,10 @@
 - Restructured chat interface JSX in `App.tsx` (introducing `gpt`, `feed`, `prompt-wrapper` divs) and updated related CSS in `App.css` based on image specifications (position, width, height), removing previous dynamic styles.
 - Added responsive CSS for tablet breakpoints (<=998px) to set feed element's top position to 5rem and width to 85% for better mobile layout.
 - Fixed chat bubble display issues by adding box-sizing: border-box to message elements and changing overflow from hidden to visible for chat-container and feed elements.
+- Committed and pushed recent changes with message "Ask open manus to create profile. Did not work, shifting strategy to Langchain".
+- Committed pending changes within the nested `OpenManus` repository ("Save OpenManus state before Langchain integration").
+- Committed update to `OpenManus` reference in the main `brokerGPT` repository ("Update OpenManus reference to latest commit").
+- Pushed all commits from the main `brokerGPT` repository.
 
 ## Decisions in Progress
 - Whether to support PDF parsing client-side or server-side
