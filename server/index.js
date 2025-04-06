@@ -19,7 +19,7 @@ app.use(express.json()); // Enable parsing of JSON request bodies
 const PORT = process.env.PORT || 3001;
 const SERPER_API_KEY = process.env.SERPER_API_KEY;
 const BROWSERLESS_API_KEY = process.env.BROWSERLESS_API_KEY;
-// const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; // Commented out Google key
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; // Define Google key
 
 // Basic check for required API keys
 if (!SERPER_API_KEY || !BROWSERLESS_API_KEY || !GOOGLE_API_KEY) {
@@ -31,7 +31,7 @@ if (!SERPER_API_KEY || !BROWSERLESS_API_KEY || !GOOGLE_API_KEY) {
 // --- Initialize Langchain Model ---
 const llm = new ChatGoogleGenerativeAI({
   apiKey: GOOGLE_API_KEY,
-  modelName: "gemini-pro", // Or your preferred Gemini model
+  model: "gemini-pro", // Use 'model' instead of 'modelName'
   temperature: 0.3, // Adjust temperature as needed
 });
 console.log("Langchain ChatGoogleGenerativeAI model initialized.");
