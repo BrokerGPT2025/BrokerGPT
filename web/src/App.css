@@ -77,6 +77,7 @@
   /* flex-grow: 1; */ /* Let chat-container handle growth */
   /* height: 0; */ /* REMOVED */
   /* max-height: 33rem; */ /* REMOVED */
+  height: 36rem; /* Added height */
   overflow-y: auto; /* Always allow scroll if needed */
   width: 100%; /* Take full width */
   /* transition: height 0.5s ease; */ /* REMOVED */
