@@ -579,21 +579,25 @@
 .chat-container {
   max-height: calc(100vh - 80px); /* Ensure chat fits below mobile nav */
 }
-.sidebar-icon-absolute-wrapper {
+/* REMOVED redundant rule below */
+/* .sidebar-icon-absolute-wrapper {
   display: none !important;
-}
+} */
 .sidebar-icon-absolute-wrapper {
   position: fixed;
   top: 1rem;
   left: 1rem;
-  z-index: 15;
-  display: none;
-  transition: opacity 0.3s ease;
+  z-index: 200; /* Increased z-index */
+  display: none; /* Hide by default */
+  /* opacity: 0; */ /* Controlled by display */
+  /* pointer-events: none; */ /* Controlled by display */
+  transition: opacity 0.3s ease; /* Keep transition if needed */
 }
 
-.app-wrapper.sidebar-closed .sidebar-icon-absolute-wrapper {
+/* REMOVED rule that showed it outside media query */
+/* .app-wrapper.sidebar-closed .sidebar-icon-absolute-wrapper {
   display: block;
-}
+} */
 
 /* Further adjustments might be needed for padding/margins */
 
@@ -619,9 +623,16 @@
   .mobile-navbar-container {
     display: none; /* Hide mobile navbar on larger screens */
   }
-  .sidebar-icon-absolute-wrapper {
-  display: none !important; /* Always hide floating open icon on larger screens */
-}
+  /* REMOVED rule that always hid icon on large screens */
+  /* .sidebar-icon-absolute-wrapper {
+  display: none !important;
+  } */
+  /* ADD rule to show icon ONLY when sidebar is closed on large screens */
+  .app-wrapper.sidebar-closed .sidebar-icon-absolute-wrapper {
+    display: block; /* Show the wrapper */
+    /* opacity: 1; */ /* Not needed */
+    /* pointer-events: auto; */ /* Not needed */
+  }
 
 /* Ensure chat-container doesn't have conflicting styles */
 /* Remove redundant/conflicting rules if any */

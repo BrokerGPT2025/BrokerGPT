@@ -222,8 +222,11 @@ const ChatInterface: React.FC = () => {
       <Sidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
 
       {/* Open Sidebar Icon Wrapper - Positioned absolutely */}
+      {/* Render wrapper unconditionally, icon conditionally */}
       <div className="sidebar-icon-absolute-wrapper">
-        {!isSidebarOpen && <OpenIcon onClick={toggleSidebar} />}
+        {!isSidebarOpen && (
+          <OpenIcon onClick={toggleSidebar} />
+        )}
       </div>
 
       {/* Main content area including mobile nav and chat */}
