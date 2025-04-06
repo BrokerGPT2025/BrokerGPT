@@ -26,5 +26,6 @@
 
 ## Tooling & Configs
 - Uses Cursor, Windsurf, RooCode for AI-driven coding
-- AI must follow all brokerGPT/memory-bank files 
+- AI must follow all brokerGPT/memory-bank files
 - Jest/Pytest test suites required per feature
+- **BrowserGym**: Identified as a research framework, not suitable for production use in this project. Do not install or attempt to use.
