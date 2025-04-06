@@ -31,10 +31,10 @@ if (!SERPER_API_KEY || !BROWSERLESS_API_KEY || !GOOGLE_API_KEY) {
 // --- Initialize Langchain Model ---
 const llm = new ChatGoogleGenerativeAI({
   apiKey: GOOGLE_API_KEY,
-  model: "gemini-1.0-pro", // Try the specific versioned model name
+  model: "gemini-1.5-pro", // Try gemini-1.5-pro based on docs text
   temperature: 0.3, // Adjust temperature as needed
 });
-console.log("Langchain ChatGoogleGenerativeAI model initialized with gemini-1.0-pro.");
+console.log("Langchain ChatGoogleGenerativeAI model initialized with gemini-1.5-pro.");
 
 // --- Initialize OpenManus MCP Integration --- // Note: This log might be misleading now
 console.log("Using OpenManus deep_research tool for research queries."); // TODO: Remove or update this log message
@@ -236,8 +236,8 @@ app.post('/api/search', async (req, res) => {
       // Define the prompt based on the mode
       let promptText = "";
       if (match) { // Profile mode
-        promptText = `Based on the following scraped text about "${actualQuery}", generate a structured JSON business profile including fields like companyName, primaryWebsite, primaryAddress, operations, estimatedAnnualRevenue, yearsInBusiness, numberOfEmployees, businessDescription:\n\n${combinedText}`;
-        // TODO: Refine this prompt for better JSON structure output
+        // Updated prompt emphasizing valid JSON output
+        promptText = `Analyze the following scraped text about "${actualQuery}". Extract information and generate ONLY a single, valid, RFC8259-compliant JSON object containing the business profile. Ensure all keys and string values are enclosed in double quotes. Include fields: companyName, primaryWebsite, primaryAddress, operations (as an array of strings), estimatedAnnualRevenue, yearsInBusiness, numberOfEmployees, businessDescription. If a value is not found, use null. Do not include any explanatory text before or after the JSON object.\n\nScraped Text:\n${combinedText}`;
       } else { // Summary mode
         promptText = `Summarize the key information about "${actualQuery}" from the following text:\n\n${combinedText}`;
       }
@@ -249,15 +249,21 @@ app.post('/api/search', async (req, res) => {
         console.log("Received response from Langchain/Google Gemini.");
 
         // Attempt to parse if in profile mode, otherwise use as summary
-        if (match) {
+        if (match) { // Profile mode - attempt to parse JSON
           try {
+            let jsonString = llmResponseContent;
+            // Remove potential markdown code fences
+            jsonString = jsonString.replace(/^```json\s*/, '').replace(/\s*```$/, '');
             // Basic attempt to clean and parse potential JSON in the response
-            const jsonStringMatch = llmResponseContent.match(/\{[\s\S]*\}/);
-            if (jsonStringMatch) {
-              finalProfileData = JSON.parse(jsonStringMatch[0]);
+            // Find the first '{' and the last '}' to extract the potential JSON object
+            const firstBrace = jsonString.indexOf('{');
+            const lastBrace = jsonString.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+              const potentialJson = jsonString.substring(firstBrace, lastBrace + 1);
+              finalProfileData = JSON.parse(potentialJson);
               console.log("Successfully parsed JSON profile from LLM response.");
             } else {
-              console.warn("LLM response did not contain a parsable JSON object. Returning raw content.");
+              console.warn("Could not extract a JSON object from the LLM response. Returning raw content.");
               finalProfileData = { companyName: actualQuery, businessDescription: llmResponseContent };
             }
           } catch (parseError) {

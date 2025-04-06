@@ -293,8 +293,6 @@
 }
 
 .feed {
-  /* flex-grow: 1; */ /* Removed, absolute position handles size */
-  overflow: hidden; /* Changed from visible to hidden */
   position: absolute; /* From image */
   width: 50%; /* From image */
   height: 73vh; /* Updated from image */
@@ -577,9 +575,6 @@
 
 .mobile-navbar-container {
   display: flex;
-}
-.chat-container {
-  max-height: calc(100vh - 80px); /* Ensure chat fits below mobile nav */
 }
 /* REMOVED redundant rule below */
 /* .sidebar-icon-absolute-wrapper {
