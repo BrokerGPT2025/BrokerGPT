@@ -23,6 +23,8 @@
 - Committed pending changes within the nested `OpenManus` repository ("Save OpenManus state before Langchain integration").
 - Committed update to `OpenManus` reference in the main `brokerGPT` repository ("Update OpenManus reference to latest commit").
 - Pushed all commits from the main `brokerGPT` repository.
+- Attempted to push local commits from `OpenManus` to its remote (`mannaandpoem/OpenManus`) but failed due to permissions (403 error). Decided to leave these commits unsynced for now, as the local state is saved for potential Langchain adaptation.
+- Installed `langchain` npm package in the `server` directory.
 
 ## Decisions in Progress
 - Whether to support PDF parsing client-side or server-side
