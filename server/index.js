@@ -5,6 +5,8 @@ const cors = require('cors');
 const axios = require('axios');
 const { spawn } = require('child_process'); // Import child_process for OpenManus integration
 // const { GoogleGenerativeAI } = require("@google/generative-ai"); // Commented out Google AI
+const { ChatGoogleGenerativeAI } = require("@langchain/google-genai"); // Langchain Google GenAI
+const { HumanMessage } = require("@langchain/core/messages"); // Langchain core messages
 
 // Create an Express application
 const app = express();
@@ -19,14 +21,23 @@ const SERPER_API_KEY = process.env.SERPER_API_KEY;
 const BROWSERLESS_API_KEY = process.env.BROWSERLESS_API_KEY;
 // const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY; // Commented out Google key
 
-// Basic check for required API keys (removed Google check)
-if (!SERPER_API_KEY || !BROWSERLESS_API_KEY) {
-  console.error("FATAL ERROR: One or more API keys (SERPER, BROWSERLESS) are not defined.");
+// Basic check for required API keys
+if (!SERPER_API_KEY || !BROWSERLESS_API_KEY || !GOOGLE_API_KEY) {
+  console.error("FATAL ERROR: One or more API keys (SERPER, BROWSERLESS, GOOGLE_API_KEY) are not defined.");
   // In a real app, you might exit or prevent the server from starting fully
+  // For now, we'll let it continue but log the error.
 }
 
-// --- Initialize OpenManus MCP Integration ---
-console.log("Using OpenManus deep_research tool for research queries.");
+// --- Initialize Langchain Model ---
+const llm = new ChatGoogleGenerativeAI({
+  apiKey: GOOGLE_API_KEY,
+  modelName: "gemini-pro", // Or your preferred Gemini model
+  temperature: 0.3, // Adjust temperature as needed
+});
+console.log("Langchain ChatGoogleGenerativeAI model initialized.");
+
+// --- Initialize OpenManus MCP Integration --- // Note: This log might be misleading now
+console.log("Using OpenManus deep_research tool for research queries."); // TODO: Remove or update this log message
 
 
 // --- Routes ---
@@ -217,20 +228,69 @@ app.post('/api/search', async (req, res) => {
         }
       }
 
+      // --- 5. Process with Langchain LLM ---
+      console.log("Sending combined text to Langchain/Google Gemini for processing...");
+      let llmResponseContent = "";
+      let finalProfileData = {};
+
+      // Define the prompt based on the mode
+      let promptText = "";
+      if (match) { // Profile mode
+        promptText = `Based on the following scraped text about "${actualQuery}", generate a structured JSON business profile including fields like companyName, primaryWebsite, primaryAddress, operations, estimatedAnnualRevenue, yearsInBusiness, numberOfEmployees, businessDescription:\n\n${combinedText}`;
+        // TODO: Refine this prompt for better JSON structure output
+      } else { // Summary mode
+        promptText = `Summarize the key information about "${actualQuery}" from the following text:\n\n${combinedText}`;
+      }
+
+      try {
+        const messages = [new HumanMessage(promptText)];
+        const llmResponse = await llm.invoke(messages);
+        llmResponseContent = llmResponse.content;
+        console.log("Received response from Langchain/Google Gemini.");
+
+        // Attempt to parse if in profile mode, otherwise use as summary
+        if (match) {
+          try {
+            // Basic attempt to clean and parse potential JSON in the response
+            const jsonStringMatch = llmResponseContent.match(/\{[\s\S]*\}/);
+            if (jsonStringMatch) {
+              finalProfileData = JSON.parse(jsonStringMatch[0]);
+              console.log("Successfully parsed JSON profile from LLM response.");
+            } else {
+              console.warn("LLM response did not contain a parsable JSON object. Returning raw content.");
+              finalProfileData = { companyName: actualQuery, businessDescription: llmResponseContent };
+            }
+          } catch (parseError) {
+            console.error("Error parsing JSON from LLM response:", parseError);
+            finalProfileData = { companyName: actualQuery, businessDescription: llmResponseContent }; // Fallback
+          }
+        } else {
+          // In summary mode, just use the content directly
+          finalProfileData = { rawSummary: llmResponseContent, isSummary: true };
+        }
+
+      } catch (llmError) {
+         console.error('Error invoking Langchain LLM:', llmError);
+         // Fallback: return the raw scraped data if LLM fails
+         finalProfileData = profileJson; // Use the previously prepared raw data
+         llmResponseContent = "LLM processing failed. Displaying raw scraped data."; // Add a note
+      }
+
+
       // Create the response object
-      const scrapedSources = []; // OpenManus doesn't return sources the same way, but Frontend expects them
-      
+      const scrapedSources = scrapedResults.map(r => r.url); // Use the URLs we actually scraped
+
       res.json({
         searchQuery: query,
-        businessProfile: profileJson, // Send the structured profile or summary
-        scrapedSources: scrapedSources // Empty array or could be populated from research results
+        businessProfile: finalProfileData, // Send the LLM processed data (or fallback)
+        scrapedSources: scrapedSources
       });
 
-    } catch (researchError) {
-      console.error('Error running OpenManus deep_research:', researchError);
+    } catch (processingError) { // Renamed catch block variable
+      console.error('Error during data processing or LLM interaction:', processingError);
       res.status(500).json({
-        message: 'Failed to process research query with OpenManus.',
-        error: researchError.message || 'Unknown research error'
+        message: 'Failed to process search query.',
+        error: processingError.message || 'Unknown processing error'
       });
     }
 
