@@ -17,6 +17,8 @@
 - Configured `/styleguide` route (dev only) to display `Stylesheet/style.html` via iframe in `StyleGuidePage.tsx` for live preview.
 - Started backend (`cd server && node index.js`) and frontend (`cd web && npm run dev`) servers. Subsequently opened the frontend application in the browser (`open http://localhost:5173/`). This sequence is triggered by the "start servers" command.
 - Restructured chat interface JSX in `App.tsx` (introducing `gpt`, `feed`, `prompt-wrapper` divs) and updated related CSS in `App.css` based on image specifications (position, width, height), removing previous dynamic styles.
+- Added responsive CSS for tablet breakpoints (<=998px) to set feed element's top position to 5rem and width to 85% for better mobile layout.
+- Fixed chat bubble display issues by adding box-sizing: border-box to message elements and changing overflow from hidden to visible for chat-container and feed elements.
 
 ## Decisions in Progress
 - Whether to support PDF parsing client-side or server-side

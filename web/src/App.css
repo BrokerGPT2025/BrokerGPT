@@ -54,7 +54,7 @@
   width: 100%;
   max-width: 770px;
   margin: 0 auto;
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to visible to prevent messages from being cut off */
   background-color: var(--chat-background-color); /* Use global variable */
   /* position: relative; */ /* Removed */
   flex-grow: 1; /* Take available space */
@@ -66,7 +66,6 @@
   padding: 0; /* REMOVED - Handled by new wrappers */
   box-sizing: border-box;
   position: relative; /* Keep relative positioning */
-  overflow: visible; /* Allow content to overflow if needed within feed */
   width: 100%; /* Ensure it takes width within feed */
   margin: 0; /* Remove auto margins */
 }
@@ -87,6 +86,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  box-sizing: border-box; /* Ensure padding is included in width calculation */
 }
 
 /* Set explicit height and restore overflow when messages are present - REMOVED */
@@ -120,6 +120,7 @@
   border-radius: 10px;
   max-width: 80%;
   word-wrap: break-word;
+  box-sizing: border-box; /* Ensure padding is included in width calculation */
 }
 
 .message pre {
@@ -292,7 +293,7 @@
 
 .feed {
   /* flex-grow: 1; */ /* Removed, absolute position handles size */
-  overflow: hidden; /* Added as requested */
+  overflow: visible; /* Changed from hidden to visible to prevent message cutoff */
   position: absolute; /* From image */
   width: 50%; /* From image */
   height: 73vh; /* Updated from image */
@@ -605,6 +606,11 @@
 @media screen and (max-width: 998px) { /* Tablet breakpoint */
   .input-area {
     width: 80%;
+  }
+  
+  .feed {
+    top: 5rem;
+    width: 85%;
   }
 }
 
